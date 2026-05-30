@@ -10,7 +10,8 @@
 const { body, validationResult } = require('express-validator');
 
 // Strict YouTube URL Regex: matches standard watch URLs, short youtu.be, embed, mobile forms
-const YOUTUBE_URL_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|music\.youtube\.com)\/(watch\?v=|embed\/|v\/|shorts\/)?([a-zA-Z0-9_-]{11})(&.*)?$/;
+const YOUTUBE_URL_REGEX =
+  /^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$/;
 
 /**
  * Standard single extraction request validator schema
