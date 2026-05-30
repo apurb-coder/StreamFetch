@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Redis service to host cache layers, rate-limiting counters, and task queue streams
+  redis:
+    image: redis:7-alpine
+    container_name: yt-extractor-redis
+    # Run Redis with maxmemory constraints and an aggressive Least Recently Used eviction policy
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # The primary Express REST API backend server
+  api:
+    build: .
+    container_name: yt-extractor-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - MAX_WORKERS=4
+      - USE_TOR=false # Set to true to route blocked extraction requests through the local tor container
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app_network
+    # Production resource limitations to prevent CPU/memory hijacking by massive jobs
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '1'
+          memory: 256M
+
+  # Secondary Tor proxy container (optional fallback for automated proxy rotation)
+  tor:
+    image: dperson/torproxy:latest
+    container_name: yt-extractor-tor
+    restart: unless-stopped
+    networks:
+      - app_network
+    ports:
+      - "9050:9050"
+
+volumes:
+  redis_data:
+
+networks:
+  app_network:
+    driver: bridge

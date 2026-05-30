@@ -1,0 +1,44 @@
+{
+  "name": "yt-extractor-api",
+  "version": "1.0.0",
+  "description": "High-performance unblocked YouTube metadata and download link extraction API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "prod": "pm2-runtime start ecosystem.config.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:logs": "pm2 logs",
+    "pm2:monit": "pm2 monit"
+  },
+  "keywords": [
+    "youtube",
+    "extractor",
+    "yt-dlp",
+    "express",
+    "redis",
+    "bullmq",
+    "api",
+    "microservice"
+  ],
+  "author": "Antigravity & Apurb",
+  "license": "MIT",
+  "dependencies": {
+    "bullmq": "^4.12.0",
+    "compression": "^1.7.4",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.3.2",
+    "lru-cache": "^10.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "pm2": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
