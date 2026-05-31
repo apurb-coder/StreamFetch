@@ -53,7 +53,7 @@ class ExtractionPool extends EventEmitter {
       }
     });
 
-    // Handle inbound messages returning extracted metadata payload
+    // Handle inbound messages returning extracted metadata payload[message sent by the worker]
     worker.on('message', (result) => {
       // Handle simple diagnostics ping responses
       if (result.type === 'pong') {
@@ -150,7 +150,7 @@ class ExtractionPool extends EventEmitter {
         // Fetch fresh rotated proxy credentials
         const proxy = proxyManager.getRandomProxy();
         
-        // Dispatch task parameters to thread
+        // Dispatch task parameters to thread[message send by the master thread to the worker thread]
         idleWorker.postMessage({ jobId, url, options, proxy });
       } else {
         // Enqueue job if system is currently fully saturated

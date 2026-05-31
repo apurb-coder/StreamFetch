@@ -1,7 +1,7 @@
 /**
  * Redis-Backed High-Performance Rate Limiting Middleware
  * 
- * Implements a Token Bucket sliding-window algorithm powered by Redis Sorted Sets (ZADD/ZREM).
+ * Implements a Sliding Window Log algorithm powered by Redis Sorted Sets (ZADD/ZREM).
  * Controls three concurrent boundary layers:
  *  - Global Layer: Limits overall traffic to protect database/CPU workloads (10 req/s)
  *  - IP Layer: Caps single connection speed to prevent DDoS and spamming (5 req/s)
@@ -75,7 +75,7 @@ class RateLimiter {
   }
 
   /**
-   * In-Memory Token Bucket sliding-window rate-limiting fallback
+   * In-Memory sliding-window log rate-limiting fallback
    * @param {string} identifier - Unique client key
    * @param {string} type - Threshold config type ('global', 'perIP', 'perUser')
    * @returns {boolean} True if client remains under limits
