@@ -87,8 +87,7 @@ if (cluster.isMaster && config.env === 'production' && !process.env.PM2_USAGE) {
   app.get('/', (req, res) => {
     res.json({
       success: true,
-      message: 'YouTube Link Extractor REST API is online.',
-      documentation: 'See REST API routes file or Plan.md for parameters details.'
+      message: 'YouTube Link Extractor REST API is online.'
     });
   });
 

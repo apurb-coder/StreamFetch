@@ -6,7 +6,7 @@ services:
     image: redis:7-alpine
     container_name: yt-extractor-redis
     # Run Redis with maxmemory constraints and an aggressive Least Recently Used eviction policy
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy ${REDIS_MAX_MEMORY_POLICY:-allkeys-lru}
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -23,12 +23,18 @@ services:
     build: .
     container_name: yt-extractor-api
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
-      - NODE_ENV=production
-      - REDIS_URL=redis://redis:6379
-      - MAX_WORKERS=4
-      - USE_TOR=false # Set to true to route blocked extraction requests through the local tor container
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - MAX_WORKERS=${MAX_WORKERS:-4}
+      - EXTRACTION_TIMEOUT=${EXTRACTION_TIMEOUT:-25000}
+      - YT_DLP_PATH=${YT_DLP_PATH:-yt-dlp}
+      - USE_TOR=${USE_TOR:-false}
+      - WEBSHARE_PROXIES=${WEBSHARE_PROXIES}
+      - ORACLE_PROXIES=${ORACLE_PROXIES}
     depends_on:
       redis:
         condition: service_healthy
@@ -39,11 +45,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 512M
+          cpus: '${CPU_LIMIT:-2}'
+          memory: ${MEMORY_LIMIT:-512M}
         reservations:
-          cpus: '1'
-          memory: 256M
+          cpus: '${CPU_RESERVATION:-1}'
+          memory: ${MEMORY_RESERVATION:-256M}
 
   # Secondary Tor proxy container (optional fallback for automated proxy rotation)
   tor:
@@ -53,7 +59,7 @@ services:
     networks:
       - app_network
     ports:
-      - "9050:9050"
+      - "${TOR_PORT:-9050}:9050"
 
 volumes:
   redis_data:
