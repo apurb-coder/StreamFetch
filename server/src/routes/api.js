@@ -2,11 +2,12 @@
  * Express REST API Routes definition
  * 
  * Mounts standard endpoint targets:
- *  - POST /api/extract         : Extracts download urls for a single video (cached)
- *  - POST /api/extract/audio   : Extracts direct audio stream links and metadata for a single video (cached)
- *  - POST /api/extract/batch   : Extracts download links for multiple videos concurrently
- *  - POST /api/formats         : Retreives clean metadata format specs
- *  - GET  /api/stats           : System stats diagnostic telemetry (protected)
+ *  - POST /api/extract             : Enqueues single video link extraction (cached)
+ *  - POST /api/extract/audio       : Enqueues audio-only link extraction (cached)
+ *  - POST /api/extract/batch       : Enqueues/processes multiple extractions concurrently
+ *  - POST /api/formats             : Enqueues streamlined format spec extraction
+ *  - GET  /api/extract/status/:id  : Polls background extraction task statuses (supports filters)
+ *  - GET  /api/stats               : System stats diagnostic telemetry (protected)
  * 
  * Utilizes rate limit guards and strictly enforces request body validations.
  */
@@ -19,6 +20,7 @@ const cacheManager = require('../core/cacheManager');
 const rateLimiter = require('../queue/rateLimiter');
 const ResponseOptimizer = require('../utils/optimizer');
 const security = require('../core/security');
+const jobQueue = require('../queue/jobQueue');
 const { 
   validateExtractionRequest, 
   validateBatchRequest, 
@@ -53,35 +55,9 @@ router.get('/handshake', (req, res) => {
 });
 
 /**
- * Helper: Processes extraction query for a single URL (checks cache first, falls back to extraction engine)
- */
-async function processSingleUrl(url, quality) {
-  const cacheKey = `extract:${url}:${quality || 'best'}`;
-
-  // 1. Check L1/L2 caches
-  const cached = cacheManager.get(cacheKey);
-  if (cached) {
-    return { cached: true, ...cached };
-  }
-
-  // 2. Perform fresh extraction racing against timeout limits
-  const freshResult = await Promise.race([
-    extractionPool.extract(url, { quality }),
-    new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Extraction request timeout')), 28000)
-    )
-  ]);
-
-  // 3. Save to cache pool (shorter TTL for common videos, longer TTL for popular hits)
-  const ttl = freshResult.viewCount > 1000000 ? 10800000 : 3600000; // 3 hours vs 1 hour
-  cacheManager.set(cacheKey, freshResult, { ttl, hot: freshResult.viewCount > 1000000 });
-
-  return { cached: false, ...freshResult };
-}
-
-/**
  * POST /api/extract
  * Extracts direct stream links for a single YouTube URL.
+ * Checks cache first, otherwise queues a background job.
  */
 router.post(
   '/extract',
@@ -92,36 +68,34 @@ router.post(
     const { url, quality } = req.body;
 
     try {
-      const data = await processSingleUrl(url, quality);
+      // 1. Check L1/L2 caches first
+      const cacheKey = `extract:${url}:${quality || 'best'}`;
+      const cached = cacheManager.get(cacheKey);
       
-      res.json({
+      if (cached) {
+        return res.json({
+          success: true,
+          message: 'Video links extracted successfully',
+          cached: true,
+          data: { cached: true, ...cached }
+        });
+      }
+
+      // 2. Queue the task to BullMQ
+      const jobId = await jobQueue.addJob(url, quality);
+      
+      res.status(202).json({
         success: true,
-        message: 'Video links extracted successfully',
-        cached: data.cached,
-        data: data
+        message: 'Extraction task queued successfully',
+        jobId: jobId,
+        status: 'waiting'
       });
 
     } catch (error) {
-      console.error('[API Router] Extraction failed for URL:', url, error);
-
-      // Determine clean error responses based on sub-process signals
-      let statusCode = 500;
-      let errorMessage = 'Failed to extract video links';
-
-      if (error.message.includes('timeout')) {
-        statusCode = 408;
-        errorMessage = 'Network connection timed out. Please retry.';
-      } else if (error.message.includes('rate limit') || error.message.includes('429')) {
-        statusCode = 429;
-        errorMessage = 'YouTube has temporarily rate limited this IP proxy. Retrying rotation.';
-      } else if (error.message.includes('not found') || error.message.includes('unavailable') || error.message.includes('404')) {
-        statusCode = 404;
-        errorMessage = 'Requested YouTube video was not found, or is age-restricted/unavailable.';
-      }
-
-      res.status(statusCode).json({
+      console.error('[API Router] Extraction queueing failed for URL:', url, error);
+      res.status(500).json({
         success: false,
-        error: errorMessage,
+        error: 'Failed to queue extraction task',
         message: error.message
       });
     }
@@ -130,7 +104,8 @@ router.post(
 
 /**
  * POST /api/extract/audio
- * Extracts only the audio stream links and metadata for a single YouTube URL.
+ * Extracts only the audio stream links and metadata for a YouTube URL.
+ * Checks cache first, otherwise queues a background job.
  */
 router.post(
   '/extract/audio',
@@ -141,81 +116,78 @@ router.post(
     const { url } = req.body;
 
     try {
-      // Re-use processSingleUrl which is fully cached
-      const data = await processSingleUrl(url, 'best');
-      
-      // Filter for formats that have audio but no video
-      let audioFormats = data.formats.filter(f => f.hasAudio && !f.hasVideo);
+      // 1. Check L1/L2 caches first
+      const cacheKey = `extract:${url}:best`;
+      const cached = cacheManager.get(cacheKey);
 
-      // Fallback if no audio-only formats exist (e.g. video files with audio tracks)
-      if (audioFormats.length === 0) {
-        audioFormats = data.formats.filter(f => f.hasAudio);
-      }
+      if (cached) {
+        // Filter for formats that have audio but no video
+        let audioFormats = cached.formats.filter(f => f.hasAudio && !f.hasVideo);
 
-      if (audioFormats.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'No audio streams found for this video'
+        // Fallback if no audio-only formats exist (e.g. video files with audio tracks)
+        if (audioFormats.length === 0) {
+          audioFormats = cached.formats.filter(f => f.hasAudio);
+        }
+
+        if (audioFormats.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: 'No audio streams found for this video'
+          });
+        }
+
+        // Sort formats by bitrate descending
+        const sortedAudioFormats = [...audioFormats].sort((a, b) => {
+          const bitrateA = a.audioBitrate || a.totalBitrate || 0;
+          const bitrateB = b.audioBitrate || b.totalBitrate || 0;
+          return bitrateB - bitrateA;
+        });
+
+        const bestAudio = sortedAudioFormats[0];
+
+        return res.json({
+          success: true,
+          message: 'Audio links extracted successfully',
+          cached: true,
+          data: {
+            id: cached.id,
+            title: cached.title,
+            duration: cached.duration,
+            thumbnail: cached.thumbnail,
+            uploader: cached.uploader,
+            uploadDate: cached.uploadDate,
+            viewCount: cached.viewCount,
+            likeCount: cached.likeCount,
+            audioUrl: bestAudio.url || bestAudio.manifestUrl,
+            audioBitrate: bestAudio.audioBitrate || bestAudio.totalBitrate,
+            ext: bestAudio.ext,
+            filesize: bestAudio.filesize || bestAudio.filesizeApprox,
+            formats: audioFormats.map(f => ({
+              formatId: f.formatId,
+              ext: f.ext,
+              bitrate: f.audioBitrate || f.totalBitrate,
+              filesize: f.filesize || f.filesizeApprox,
+              url: f.url || f.manifestUrl
+            }))
+          }
         });
       }
 
-      // Sort formats by bitrate descending
-      const sortedAudioFormats = [...audioFormats].sort((a, b) => {
-        const bitrateA = a.audioBitrate || a.totalBitrate || 0;
-        const bitrateB = b.audioBitrate || b.totalBitrate || 0;
-        return bitrateB - bitrateA;
-      });
-
-      const bestAudio = sortedAudioFormats[0];
-
-      res.json({
+      // 2. Queue the task to BullMQ (audio relies on full format collection)
+      const jobId = await jobQueue.addJob(url, 'best');
+      
+      res.status(202).json({
         success: true,
-        message: 'Audio links extracted successfully',
-        cached: data.cached,
-        data: {
-          id: data.id,
-          title: data.title,
-          duration: data.duration,
-          thumbnail: data.thumbnail,
-          uploader: data.uploader,
-          uploadDate: data.uploadDate,
-          viewCount: data.viewCount,
-          likeCount: data.likeCount,
-          audioUrl: bestAudio.url || bestAudio.manifestUrl,
-          audioBitrate: bestAudio.audioBitrate || bestAudio.totalBitrate,
-          ext: bestAudio.ext,
-          filesize: bestAudio.filesize || bestAudio.filesizeApprox,
-          formats: audioFormats.map(f => ({
-            formatId: f.formatId,
-            ext: f.ext,
-            bitrate: f.audioBitrate || f.totalBitrate,
-            filesize: f.filesize || f.filesizeApprox,
-            url: f.url || f.manifestUrl
-          }))
-        }
+        message: 'Audio extraction task queued successfully',
+        jobId: jobId,
+        status: 'waiting'
       });
 
     } catch (error) {
-      console.error('[API Router] Audio extraction failed for URL:', url, error);
-
-      // Determine clean error responses based on sub-process signals
-      let statusCode = 500;
-      let errorMessage = 'Failed to extract audio links';
-
-      if (error.message.includes('timeout')) {
-        statusCode = 408;
-        errorMessage = 'Network connection timed out. Please retry.';
-      } else if (error.message.includes('rate limit') || error.message.includes('429')) {
-        statusCode = 429;
-        errorMessage = 'YouTube has temporarily rate limited this IP proxy. Retrying rotation.';
-      } else if (error.message.includes('not found') || error.message.includes('unavailable') || error.message.includes('404')) {
-        statusCode = 404;
-        errorMessage = 'Requested YouTube video was not found, or is age-restricted/unavailable.';
-      }
-
-      res.status(statusCode).json({
+      console.error('[API Router] Audio extraction queueing failed for URL:', url, error);
+      res.status(500).json({
         success: false,
-        error: errorMessage,
+        error: 'Failed to queue audio extraction task',
         message: error.message
       });
     }
@@ -224,7 +196,8 @@ router.post(
 
 /**
  * POST /api/extract/batch
- * Extracts metadata for multiple YouTube URLs concurrently (maximum 10).
+ * Extracts metadata for multiple YouTube URLs concurrently.
+ * Checks cache for each, enqueuing uncached entries.
  */
 router.post(
   '/extract/batch',
@@ -235,14 +208,29 @@ router.post(
     const { urls, quality } = req.body;
     console.log(`[API Router] Executing batch request of size: ${urls.length}`);
 
-    // Map each target to its execution promise
+    // Map each target to its execution promise (returns cached data or jobId)
     const tasks = urls.map(async (url) => {
       try {
-        const item = await processSingleUrl(url, quality);
+        const cacheKey = `extract:${url}:${quality || 'best'}`;
+        const cached = cacheManager.get(cacheKey);
+
+        if (cached) {
+          return {
+            url,
+            success: true,
+            cached: true,
+            data: { cached: true, ...cached }
+          };
+        }
+
+        // Add to queue
+        const jobId = await jobQueue.addJob(url, quality);
         return {
           url,
           success: true,
-          data: item
+          cached: false,
+          jobId: jobId,
+          status: 'waiting'
         };
       } catch (err) {
         return {
@@ -266,6 +254,7 @@ router.post(
 /**
  * POST /api/formats
  * Returns streamlined lists of available files and qualities.
+ * Checks cache first, otherwise queues a background job.
  */
 router.post(
   '/formats',
@@ -283,24 +272,30 @@ router.post(
         return res.json({ success: true, cached: true, formats: cached });
       }
 
-      // 2. Fetch full metadata
-      const rawMetadata = await extractionPool.extract(url);
-      const cleanFormats = ResponseOptimizer.stripToFormatsOnly(rawMetadata);
+      // Check if full extraction results are already cached
+      const generalCacheKey = `extract:${url}:best`;
+      const generalCached = cacheManager.get(generalCacheKey);
+      if (generalCached) {
+        const cleanFormats = ResponseOptimizer.stripToFormatsOnly(generalCached);
+        cacheManager.set(cacheKey, cleanFormats, { ttl: 7200000 });
+        return res.json({ success: true, cached: true, formats: cleanFormats });
+      }
 
-      // 3. Cache stripped down format structure (TTL: 2 Hours)
-      cacheManager.set(cacheKey, cleanFormats, { ttl: 7200000 });
+      // 2. Queue the task to BullMQ
+      const jobId = await jobQueue.addJob(url, 'best');
 
-      res.json({
+      res.status(202).json({
         success: true,
-        cached: false,
-        formats: cleanFormats
+        message: 'Format extraction task queued successfully',
+        jobId: jobId,
+        status: 'waiting'
       });
 
     } catch (error) {
-      console.error('[API Router] Format listing failed:', error);
+      console.error('[API Router] Format listing queueing failed:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to retrieve available video formats',
+        error: 'Failed to queue format extraction task',
         message: error.message
       });
     }
@@ -308,10 +303,160 @@ router.post(
 );
 
 /**
- * GET /api/stats
- * Secure diagnostics panel showing caches, RAM heap, and worker status.
+ * GET /api/extract/status/:jobId
+ * Polls the extraction status of a background job.
+ * Supports optional ?type=audio or ?type=formats query formatting.
  */
-router.get('/stats', (req, res) => {
+router.get('/extract/status/:jobId', async (req, res) => {
+  const { jobId } = req.params;
+  const { type } = req.query; // 'audio' or 'formats'
+
+  try {
+    const job = await jobQueue.getJob(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        error: 'Job not found',
+        message: 'The requested extraction job does not exist or has expired.'
+      });
+    }
+
+    const state = await job.getState();
+    const progress = job.progress;
+
+    if (state === 'completed') {
+      const data = job.returnvalue || job.returnValue;
+
+      if (!data) {
+        return res.status(500).json({
+          success: false,
+          error: 'No data retrieved',
+          message: 'The job completed but returned empty metadata.'
+        });
+      }
+
+      // Apply type filters to format the output matching corresponding endpoints
+      if (type === 'audio') {
+        let audioFormats = data.formats.filter(f => f.hasAudio && !f.hasVideo);
+
+        if (audioFormats.length === 0) {
+          audioFormats = data.formats.filter(f => f.hasAudio);
+        }
+
+        if (audioFormats.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: 'No audio streams found for this video'
+          });
+        }
+
+        const sortedAudioFormats = [...audioFormats].sort((a, b) => {
+          const bitrateA = a.audioBitrate || a.totalBitrate || 0;
+          const bitrateB = b.audioBitrate || b.totalBitrate || 0;
+          return bitrateB - bitrateA;
+        });
+
+        const bestAudio = sortedAudioFormats[0];
+
+        return res.json({
+          success: true,
+          jobId: job.id,
+          status: state,
+          progress: progress,
+          data: {
+            id: data.id,
+            title: data.title,
+            duration: data.duration,
+            thumbnail: data.thumbnail,
+            uploader: data.uploader,
+            uploadDate: data.uploadDate,
+            viewCount: data.viewCount,
+            likeCount: data.likeCount,
+            audioUrl: bestAudio.url || bestAudio.manifestUrl,
+            audioBitrate: bestAudio.audioBitrate || bestAudio.totalBitrate,
+            ext: bestAudio.ext,
+            filesize: bestAudio.filesize || bestAudio.filesizeApprox,
+            formats: audioFormats.map(f => ({
+              formatId: f.formatId,
+              ext: f.ext,
+              bitrate: f.audioBitrate || f.totalBitrate,
+              filesize: f.filesize || f.filesizeApprox,
+              url: f.url || f.manifestUrl
+            }))
+          }
+        });
+      }
+
+      if (type === 'formats') {
+        const cleanFormats = ResponseOptimizer.stripToFormatsOnly(data);
+        return res.json({
+          success: true,
+          jobId: job.id,
+          status: state,
+          progress: progress,
+          formats: cleanFormats
+        });
+      }
+
+      // Default: Return full metadata
+      return res.json({
+        success: true,
+        jobId: job.id,
+        status: state,
+        progress: progress,
+        data: data
+      });
+    }
+
+    if (state === 'failed') {
+      let statusCode = 500;
+      let errorMessage = 'Failed to extract video links';
+      const failedReason = job.failedReason || '';
+
+      if (failedReason.includes('timeout')) {
+        statusCode = 408;
+        errorMessage = 'Network connection timed out. Please retry.';
+      } else if (failedReason.includes('rate limit') || failedReason.includes('429')) {
+        statusCode = 429;
+        errorMessage = 'YouTube has temporarily rate limited this IP proxy. Retrying rotation.';
+      } else if (failedReason.includes('not found') || failedReason.includes('unavailable') || failedReason.includes('404')) {
+        statusCode = 404;
+        errorMessage = 'Requested YouTube video was not found, or is age-restricted/unavailable.';
+      }
+
+      return res.status(statusCode).json({
+        success: false,
+        jobId: job.id,
+        status: state,
+        error: errorMessage,
+        message: failedReason
+      });
+    }
+
+    // Otherwise, still processing (active, waiting, etc.)
+    return res.json({
+      success: true,
+      jobId: job.id,
+      status: state,
+      progress: progress
+    });
+
+  } catch (error) {
+    console.error('[API Router] Job status check failed for Job ID:', jobId, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve job status',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/stats
+ * Secure diagnostics panel showing caches, RAM heap, worker, and BullMQ queue counts.
+ */
+router.get('/stats', async (req, res) => {
   const apiKey = req.headers['x-api-key'];
   const config = require('../../config/default');
 
@@ -323,6 +468,13 @@ router.get('/stats', (req, res) => {
     });
   }
 
+  let bullmqQueueStats = null;
+  try {
+    bullmqQueueStats = await jobQueue.queue.getJobCounts();
+  } catch (err) {
+    // Fail-safe default
+  }
+
   res.json({
     success: true,
     timestamp: Date.now(),
@@ -331,7 +483,8 @@ router.get('/stats', (req, res) => {
     cacheMetrics: cacheManager.getStats(),
     activeWorkersCount: extractionPool.workers.length,
     activeJobsPending: extractionPool.activeJobs.size,
-    queuedJobsWaiting: extractionPool.queue.length
+    queuedJobsWaiting: extractionPool.queue.length,
+    bullmqQueueStats
   });
 });
 

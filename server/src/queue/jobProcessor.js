@@ -12,6 +12,7 @@ const { Worker } = require('bullmq');
 const IORedis = require('ioredis');
 const config = require('../../config/default');
 const extractionPool = require('../core/extractor');
+const cacheManager = require('../core/cacheManager');
 
 class JobProcessor {
   constructor() {
@@ -61,6 +62,11 @@ class JobProcessor {
 
           // Process extraction through core worker thread pool
           const metadata = await extractionPool.extract(url, { quality });
+
+          // Save to cache pool (shorter TTL for common videos, longer TTL for popular hits)
+          const cacheKey = `extract:${url}:${quality || 'best'}`;
+          const ttl = metadata.viewCount > 1000000 ? 10800000 : 3600000; // 3 hours vs 1 hour
+          cacheManager.set(cacheKey, metadata, { ttl, hot: metadata.viewCount > 1000000 });
 
           await job.updateProgress(100); // 100% progress
           

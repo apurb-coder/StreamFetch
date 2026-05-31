@@ -5,11 +5,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: yt-extractor-redis
-    # Run Redis with maxmemory constraints and an aggressive Least Recently Used eviction policy
-    command: redis-server --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy ${REDIS_MAX_MEMORY_POLICY:-allkeys-lru}
+    # Run Redis with maxmemory constraints and a noeviction policy to ensure BullMQ queue integrity
+    command: redis-server --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy ${REDIS_MAX_MEMORY_POLICY:-noeviction}
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     networks:
       - app_network
     healthcheck:

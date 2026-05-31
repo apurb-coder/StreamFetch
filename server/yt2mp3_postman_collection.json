@@ -146,6 +146,33 @@
 			"response": []
 		},
 		{
+			"name": "Check Extraction Status (Polling)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/extract/status/:jobId",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"extract",
+						"status",
+						":jobId"
+					],
+					"variable": [
+						{
+							"key": "jobId",
+							"value": "1"
+						}
+					]
+				},
+				"description": "Polls the status of an extraction job. On completion, returns the results. Optional query params: `?type=audio` or `?type=formats`."
+			},
+			"response": []
+		},
+		{
 			"name": "Get System Diagnostics (Protected Stats)",
 			"request": {
 				"method": "GET",
@@ -185,8 +212,9 @@
 					"const hasApiKeyHeader = pm.request.headers.get(\"x-api-key\");",
 					"const useAdminBypass = hasApiKeyHeader && hasApiKeyHeader === adminApiKey;",
 					"",
-					"// 2. If bypassing or calling handshake route, skip signature generation",
-					"if (!useAdminBypass && pm.request.url.getPath() !== \"/api/handshake\") {",
+					"// 2. If bypassing or calling handshake route or checking status, skip signature generation",
+					"const path = pm.request.url.getPath();",
+					"if (!useAdminBypass && path !== \"/api/handshake\" && !path.startsWith(\"/api/extract/status/\")) {",
 					"    const now = Date.now();",
 					"    let token = pm.globals.get(\"yt2mp3_appToken\");",
 					"    let expiry = pm.globals.get(\"yt2mp3_appTokenExpiry\");",
