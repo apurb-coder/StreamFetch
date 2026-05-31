@@ -1,0 +1,278 @@
+{
+	"info": {
+		"_postman_id": "81337f80-6dc9-46c9-bd67-6fcc7896731d",
+		"name": "yt2mp3 API Collection",
+		"description": "Postman Collection for the YouTube Link Extractor REST API (yt2mp3), including automated signature generation and admin bypass support.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Handshake (Get Ephemeral Token)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "User-Agent",
+						"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/handshake",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"handshake"
+					]
+				},
+				"description": "Generates a dynamic short-lived app token for signing subsequent client requests. NOTE: You must customize User-Agent to mimic a modern browser, otherwise the security check blocks the request."
+			},
+			"response": []
+		},
+		{
+			"name": "Extract Links (Single Video)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n    \"quality\": \"best\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/extract",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"extract"
+					]
+				},
+				"description": "Extracts streaming URLs for a single YouTube video. Valid resolutions: '360', '480', '720', '1080', '1440', '2160', or 'best'."
+			},
+			"response": []
+		},
+		{
+			"name": "Extract Audio Only (Single Video)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/extract/audio",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"extract",
+						"audio"
+					]
+				},
+				"description": "Extracts direct streaming/download URLs for only the audio tracks of a single YouTube video."
+			},
+			"response": []
+		},
+		{
+			"name": "Extract Links Batch (Multiple Videos)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"urls\": [\n        \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n        \"https://www.youtube.com/watch?v=9bZkp7q19f0\"\n    ],\n    \"quality\": \"best\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/extract/batch",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"extract",
+						"batch"
+					]
+				},
+				"description": "Extracts streaming URLs for multiple YouTube videos concurrently (max 10)."
+			},
+			"response": []
+		},
+		{
+			"name": "Get Formats List",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/formats",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"formats"
+					]
+				},
+				"description": "Retrieves the streamlined formats metadata including audio/video qualities and sizes for a video."
+			},
+			"response": []
+		},
+		{
+			"name": "Get System Diagnostics (Protected Stats)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/stats",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"stats"
+					]
+				},
+				"description": "Returns core server telemetries (RAM usage, active workers, queue sizes, cache performance). Requires the 'x-api-key' header."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"const baseUrl = pm.collectionVariables.get(\"baseUrl\") || \"http://localhost:3000\";",
+					"const clientSecretFormula = pm.collectionVariables.get(\"clientSecretFormula\") || \"yt2mp3_dynamic_secure_formula_salt_2026\";",
+					"const adminApiKey = pm.collectionVariables.get(\"adminApiKey\") || \"my_secure_admin_api_key\";",
+					"",
+					"// 1. Check if user is using Admin API Key bypass",
+					"const hasApiKeyHeader = pm.request.headers.get(\"x-api-key\");",
+					"const useAdminBypass = hasApiKeyHeader && hasApiKeyHeader === adminApiKey;",
+					"",
+					"// 2. If bypassing or calling handshake route, skip signature generation",
+					"if (!useAdminBypass && pm.request.url.getPath() !== \"/api/handshake\") {",
+					"    const now = Date.now();",
+					"    let token = pm.globals.get(\"yt2mp3_appToken\");",
+					"    let expiry = pm.globals.get(\"yt2mp3_appTokenExpiry\");",
+					"",
+					"    const fetchTokenAndSign = () => {",
+					"        const handshakeUrl = `${baseUrl}/api/handshake`;",
+					"        pm.sendRequest({",
+					"            url: handshakeUrl,",
+					"            method: 'GET',",
+					"            header: {",
+					"                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'",
+					"            }",
+					"        }, function (err, res) {",
+					"            if (err) {",
+					"                console.error(\"[Postman Pre-request] Failed to fetch handshake token:\", err);",
+					"                return;",
+					"            }",
+					"            const json = res.json();",
+					"            if (json && json.success) {",
+					"                token = json.token;",
+					"                expiry = Date.now() + (json.expiresInMs || 900000);",
+					"                ",
+					"                pm.globals.set(\"yt2mp3_appToken\", token);",
+					"                pm.globals.set(\"yt2mp3_appTokenExpiry\", expiry);",
+					"                ",
+					"                console.log(\"[Postman Pre-request] Fresh token successfully acquired:\", token);",
+					"                signRequest(token);",
+					"            } else {",
+					"                console.error(\"[Postman Pre-request] Handshake was unsuccessful:\", json);",
+					"            }",
+					"        });",
+					"    };",
+					"",
+					"    const signRequest = (appToken) => {",
+					"        const timestamp = Date.now().toString();",
+					"        let requestUrlParam = \"\";",
+					"        ",
+					"        if (pm.request.body && pm.request.body.mode === \"raw\") {",
+					"            try {",
+					"                const body = JSON.parse(pm.request.body.raw);",
+					"                if (body && body.url) {",
+					"                    requestUrlParam = body.url;",
+					"                }",
+					"            } catch (e) {",
+					"                // Non-JSON or missing URL",
+					"            }",
+					"        }",
+					"        ",
+					"        // SHA256(token + timestamp + url + clientSecretFormula)",
+					"        const inputString = appToken + timestamp + requestUrlParam + clientSecretFormula;",
+					"        const signature = CryptoJS.SHA256(inputString).toString(CryptoJS.enc.Hex);",
+					"        ",
+					"        pm.request.headers.upsert({ key: \"x-app-token\", value: appToken });",
+					"        pm.request.headers.upsert({ key: \"x-app-timestamp\", value: timestamp });",
+					"        pm.request.headers.upsert({ key: \"x-app-signature\", value: signature });",
+					"        ",
+					"        console.log(\"[Postman Pre-request] Applied signature:\", signature);",
+					"    };",
+					"",
+					"    if (!token || !expiry || now > parseInt(expiry, 10)) {",
+					"        console.log(\"[Postman Pre-request] Token expired or missing. Fetching new handshake token...\");",
+					"        fetchTokenAndSign();",
+					"    } else {",
+					"        console.log(\"[Postman Pre-request] Reusing cached token:\", token);",
+					"        signRequest(token);",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "adminApiKey",
+			"value": "my_secure_admin_api_key",
+			"type": "string"
+		},
+		{
+			"key": "clientSecretFormula",
+			"value": "yt2mp3_dynamic_secure_formula_salt_2026",
+			"type": "string"
+		}
+	]
+}

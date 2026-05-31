@@ -3,6 +3,7 @@
  * 
  * Mounts standard endpoint targets:
  *  - POST /api/extract         : Extracts download urls for a single video (cached)
+ *  - POST /api/extract/audio   : Extracts direct audio stream links and metadata for a single video (cached)
  *  - POST /api/extract/batch   : Extracts download links for multiple videos concurrently
  *  - POST /api/formats         : Retreives clean metadata format specs
  *  - GET  /api/stats           : System stats diagnostic telemetry (protected)
@@ -106,6 +107,100 @@ router.post(
       // Determine clean error responses based on sub-process signals
       let statusCode = 500;
       let errorMessage = 'Failed to extract video links';
+
+      if (error.message.includes('timeout')) {
+        statusCode = 408;
+        errorMessage = 'Network connection timed out. Please retry.';
+      } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+        statusCode = 429;
+        errorMessage = 'YouTube has temporarily rate limited this IP proxy. Retrying rotation.';
+      } else if (error.message.includes('not found') || error.message.includes('unavailable') || error.message.includes('404')) {
+        statusCode = 404;
+        errorMessage = 'Requested YouTube video was not found, or is age-restricted/unavailable.';
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: errorMessage,
+        message: error.message
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/extract/audio
+ * Extracts only the audio stream links and metadata for a single YouTube URL.
+ */
+router.post(
+  '/extract/audio',
+  security.verifySignatureMiddleware(),
+  validateExtractionRequest,
+  checkValidationResult,
+  async (req, res) => {
+    const { url } = req.body;
+
+    try {
+      // Re-use processSingleUrl which is fully cached
+      const data = await processSingleUrl(url, 'best');
+      
+      // Filter for formats that have audio but no video
+      let audioFormats = data.formats.filter(f => f.hasAudio && !f.hasVideo);
+
+      // Fallback if no audio-only formats exist (e.g. video files with audio tracks)
+      if (audioFormats.length === 0) {
+        audioFormats = data.formats.filter(f => f.hasAudio);
+      }
+
+      if (audioFormats.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'No audio streams found for this video'
+        });
+      }
+
+      // Sort formats by bitrate descending
+      const sortedAudioFormats = [...audioFormats].sort((a, b) => {
+        const bitrateA = a.audioBitrate || a.totalBitrate || 0;
+        const bitrateB = b.audioBitrate || b.totalBitrate || 0;
+        return bitrateB - bitrateA;
+      });
+
+      const bestAudio = sortedAudioFormats[0];
+
+      res.json({
+        success: true,
+        message: 'Audio links extracted successfully',
+        cached: data.cached,
+        data: {
+          id: data.id,
+          title: data.title,
+          duration: data.duration,
+          thumbnail: data.thumbnail,
+          uploader: data.uploader,
+          uploadDate: data.uploadDate,
+          viewCount: data.viewCount,
+          likeCount: data.likeCount,
+          audioUrl: bestAudio.url || bestAudio.manifestUrl,
+          audioBitrate: bestAudio.audioBitrate || bestAudio.totalBitrate,
+          ext: bestAudio.ext,
+          filesize: bestAudio.filesize || bestAudio.filesizeApprox,
+          formats: audioFormats.map(f => ({
+            formatId: f.formatId,
+            ext: f.ext,
+            bitrate: f.audioBitrate || f.totalBitrate,
+            filesize: f.filesize || f.filesizeApprox,
+            url: f.url || f.manifestUrl
+          }))
+        }
+      });
+
+    } catch (error) {
+      console.error('[API Router] Audio extraction failed for URL:', url, error);
+
+      // Determine clean error responses based on sub-process signals
+      let statusCode = 500;
+      let errorMessage = 'Failed to extract audio links';
 
       if (error.message.includes('timeout')) {
         statusCode = 408;

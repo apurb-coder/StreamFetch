@@ -43,8 +43,12 @@ class ResponseOptimizer {
               totalBitrate: format.tbr || null,     // Combined bitrate
               videoBitrate: format.vbr || null,     // Video track bitrate
               audioBitrate: format.abr || null,     // Audio track bitrate
-              hasVideo: format.vcodec && format.vcodec !== 'none',
-              hasAudio: format.acodec && format.acodec !== 'none'
+              hasVideo: !!(format.vcodec && format.vcodec !== 'none'),
+              hasAudio: !!(
+                (format.acodec && format.acodec !== 'none') ||
+                format.resolution === 'audio only' ||
+                (format.vcodec === 'none' && format.ext !== 'mhtml' && (!format.protocol || !format.protocol.includes('mhtml')))
+              )
             }))
             .filter(f => f.url || f.manifestUrl) // Exclude entries missing stream links
         : []
