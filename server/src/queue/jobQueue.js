@@ -46,12 +46,12 @@ class JobQueueManager {
           delay: 2000
         },
         removeOnComplete: {
-          age: 3600 * 24, // Keep completed jobs for 24 hours to support polling
-          count: 1000    // Keep up to 1000 jobs
+          age: 3600, // Keep completed jobs for 1 hour to support polling/retrieval
+          count: 100 // Keep up to 100 jobs to limit Redis memory footprint
         },
         removeOnFail: {
-          age: 3600 * 24 * 7, // Keep failed jobs for 7 days
-          count: 500
+          age: 3600 * 2, // Keep failed jobs for 2 hours for diagnostic/telemetry access
+          count: 50      // Keep up to 50 jobs
         }
       }
     });
