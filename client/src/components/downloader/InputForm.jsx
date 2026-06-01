@@ -1,0 +1,79 @@
+import React from 'react';
+import TabSelector from './TabSelector';
+
+export default function InputForm({
+  handleConvert,
+  activeTab,
+  setActiveTab,
+  setErrorMsg,
+  urlInput,
+  setUrlInput,
+  batchUrls,
+  setBatchUrls,
+  pasteFromClipboard
+}) {
+  return (
+    <form onSubmit={handleConvert} className="space-y-6">
+      
+      {/* Format selection header tabs */}
+      <TabSelector 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        setErrorMsg={setErrorMsg} 
+      />
+
+      {/* Input Text / Textarea depending on ActiveTab */}
+      <div className="space-y-2">
+        <label className="font-caption-mono text-mute-dark uppercase tracking-widest text-xs block">
+          {activeTab === 'batch' ? 'Batch YouTube URLs (One per line, Max 10)' : 'Video URL'}
+        </label>
+        
+        {activeTab !== 'batch' ? (
+          <div className="relative group">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-mute-dark flex items-center">
+              <span className="material-symbols-outlined">link</span>
+            </div>
+            <input 
+              className="w-full h-input-height bg-canvas-dark border border-hairline rounded-lg pl-12 pr-24 text-on-surface placeholder:text-mute-dark focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none transition-all font-medium text-sm"
+              id="url-input" 
+              placeholder="Paste your YouTube link here..." 
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+            />
+            <button 
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-surface-container-highest text-on-surface px-4 py-1.5 rounded text-xs font-semibold hover:bg-surface-variant transition-colors cursor-pointer" 
+              onClick={pasteFromClipboard}
+            >
+              Paste
+            </button>
+          </div>
+        ) : (
+          <div>
+            <textarea 
+              rows="4"
+              className="w-full bg-canvas-dark border border-hairline rounded-lg p-4 text-on-surface placeholder:text-mute-dark focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none transition-all font-mono text-sm leading-relaxed"
+              placeholder="Paste multiple links (one per line, e.g.)&#13;https://www.youtube.com/watch?v=123&#13;https://www.youtube.com/watch?v=456"
+              value={batchUrls}
+              onChange={(e) => setBatchUrls(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Submit row & Extra option */}
+      <div className="flex flex-col md:flex-row gap-6 items-end">
+        <div className="w-full md:flex-1">
+          <button 
+            type="submit"
+            className="w-full h-input-height bg-gradient-end text-white font-display-md flex items-center justify-center gap-3 rounded-lg hover:brightness-110 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,77,77,0.3)] cursor-pointer text-lg font-bold"
+          >
+            <span className="material-symbols-outlined">bolt</span>
+            {activeTab === 'batch' ? 'Enqueue Batch Task' : 'Fetch Content'}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}

@@ -104,8 +104,8 @@ router.post(
 
 /**
  * POST /api/extract/audio
- * Extracts only the audio stream links and metadata for a YouTube URL.
- * Checks cache first, otherwise queues a background job.
+ * Legacy wrapper: extracts direct stream links and metadata for a YouTube URL.
+ * Delegates entirely to the unified /api/extract pipeline.
  */
 router.post(
   '/extract/audio',
@@ -116,64 +116,20 @@ router.post(
     const { url } = req.body;
 
     try {
-      // 1. Check L1/L2 caches first
+      // 1. Check L1/L2 caches first using the unified 'best' cache key
       const cacheKey = `extract:${url}:best`;
       const cached = cacheManager.get(cacheKey);
 
       if (cached) {
-        // Filter for formats that have audio but no video
-        let audioFormats = cached.formats.filter(f => f.hasAudio && !f.hasVideo);
-
-        // Fallback if no audio-only formats exist (e.g. video files with audio tracks)
-        if (audioFormats.length === 0) {
-          audioFormats = cached.formats.filter(f => f.hasAudio);
-        }
-
-        if (audioFormats.length === 0) {
-          return res.status(404).json({
-            success: false,
-            error: 'No audio streams found for this video'
-          });
-        }
-
-        // Sort formats by bitrate descending
-        const sortedAudioFormats = [...audioFormats].sort((a, b) => {
-          const bitrateA = a.audioBitrate || a.totalBitrate || 0;
-          const bitrateB = b.audioBitrate || b.totalBitrate || 0;
-          return bitrateB - bitrateA;
-        });
-
-        const bestAudio = sortedAudioFormats[0];
-
         return res.json({
           success: true,
           message: 'Audio links extracted successfully',
           cached: true,
-          data: {
-            id: cached.id,
-            title: cached.title,
-            duration: cached.duration,
-            thumbnail: cached.thumbnail,
-            uploader: cached.uploader,
-            uploadDate: cached.uploadDate,
-            viewCount: cached.viewCount,
-            likeCount: cached.likeCount,
-            audioUrl: bestAudio.url || bestAudio.manifestUrl,
-            audioBitrate: bestAudio.audioBitrate || bestAudio.totalBitrate,
-            ext: bestAudio.ext,
-            filesize: bestAudio.filesize || bestAudio.filesizeApprox,
-            formats: audioFormats.map(f => ({
-              formatId: f.formatId,
-              ext: f.ext,
-              bitrate: f.audioBitrate || f.totalBitrate,
-              filesize: f.filesize || f.filesizeApprox,
-              url: f.url || f.manifestUrl
-            }))
-          }
+          data: { cached: true, ...cached }
         });
       }
 
-      // 2. Queue the task to BullMQ (audio relies on full format collection)
+      // 2. Queue the task to BullMQ
       const jobId = await jobQueue.addJob(url, 'best');
       
       res.status(202).json({
@@ -488,4 +444,61 @@ router.get('/stats', async (req, res) => {
   });
 });
 
+/**
+ * GET /api/proxy
+ * Optimized streaming proxy using native fetch to resolve CORS blockages on YouTube streams in the frontend.
+ */
+router.get('/proxy', async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+  try {
+    const decodedUrl = decodeURIComponent(url);
+    const parsedUrl = new URL(decodedUrl);
+    
+    // Safety check: ensure we only proxy trusted video content streams
+    if (!parsedUrl.hostname.includes('googlevideo.com') && !parsedUrl.hostname.includes('youtube.com') && !parsedUrl.hostname.includes('ytimg.com')) {
+      return res.status(403).json({ error: 'Forbidden domain' });
+    }
+
+    const response = await fetch(decodedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.youtube.com/',
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Remote server responded with ${response.status}` });
+    }
+
+    // Forward the headers
+    if (response.headers.get('content-type')) {
+      res.setHeader('Content-Type', response.headers.get('content-type'));
+    }
+    if (response.headers.get('content-length')) {
+      res.setHeader('Content-Length', response.headers.get('content-length'));
+    }
+    
+    // Explicit CORS approval
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    // Streaming pipe using modern Node stream reader
+    const reader = response.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(value);
+    }
+    res.end();
+  } catch (error) {
+    console.error('[API Proxy] Error forwarding media stream:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Proxy failed', message: error.message });
+    }
+  }
+});
+
 module.exports = router;
+

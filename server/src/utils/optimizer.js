@@ -15,6 +15,66 @@ class ResponseOptimizer {
   static clean(rawData) {
     if (!rawData) return null;
 
+    const rawFormats = Array.isArray(rawData.formats) ? rawData.formats : [];
+    
+    // Map down only downloadable audio and video formats
+    const mappedFormats = rawFormats
+      .map(format => {
+        const hasVideo = !!(format.vcodec && format.vcodec !== 'none');
+        const hasAudio = !!(
+          (format.acodec && format.acodec !== 'none') ||
+          format.resolution === 'audio only' ||
+          (format.vcodec === 'none' && format.ext !== 'mhtml' && (!format.protocol || !format.protocol.includes('mhtml')))
+        );
+        
+        let ext = format.ext || '';
+        // Map audio-only formats to mp3 as requested
+        if (hasAudio && !hasVideo) {
+          ext = 'mp3';
+        }
+
+        return {
+          formatId: format.format_id,
+          ext: ext,
+          resolution: format.resolution || `${format.width}x${format.height}`,
+          width: format.width || null,
+          height: format.height || null,
+          filesize: format.filesize || null,
+          filesizeApprox: format.filesize_approx || null,
+          vcodec: format.vcodec || 'none',
+          acodec: format.acodec || 'none',
+          url: format.url || null,
+          manifestUrl: format.manifest_url || null,
+          protocol: format.protocol || '',
+          totalBitrate: format.tbr || null,     // Combined bitrate
+          videoBitrate: format.vbr || null,     // Video track bitrate
+          audioBitrate: format.abr || null,     // Audio track bitrate
+          hasVideo,
+          hasAudio
+        };
+      })
+      .filter(f => {
+        if (!f.url && !f.manifestUrl) return false;
+        
+        // Include audio-only formats (mapped to mp3)
+        if (f.hasAudio && !f.hasVideo) return true;
+        
+        // Include video-only/silent formats
+        if (f.hasVideo && !f.hasAudio) return true;
+        
+        // Include video formats with audio
+        return f.hasVideo && f.hasAudio;
+      });
+
+    // Extract best audio format for root level compatibility
+    const audioFormats = mappedFormats.filter(f => f.hasAudio && !f.hasVideo);
+    const sortedAudioFormats = [...audioFormats].sort((a, b) => {
+      const bitrateA = a.audioBitrate || a.totalBitrate || 0;
+      const bitrateB = b.audioBitrate || b.totalBitrate || 0;
+      return bitrateB - bitrateA;
+    });
+    const bestAudio = sortedAudioFormats[0] || null;
+
     return {
       id: rawData.id,
       title: rawData.title,
@@ -26,32 +86,13 @@ class ResponseOptimizer {
       viewCount: rawData.view_count,
       likeCount: rawData.like_count || 0,
       
-      // Map down only downloadable audio and video formats
-      formats: Array.isArray(rawData.formats)
-        ? rawData.formats
-            .map(format => ({
-              formatId: format.format_id,
-              ext: format.ext,
-              resolution: format.resolution || `${format.width}x${format.height}`,
-              filesize: format.filesize || null,
-              filesizeApprox: format.filesize_approx || null,
-              vcodec: format.vcodec || 'none',
-              acodec: format.acodec || 'none',
-              url: format.url || null,
-              manifestUrl: format.manifest_url || null,
-              protocol: format.protocol || '',
-              totalBitrate: format.tbr || null,     // Combined bitrate
-              videoBitrate: format.vbr || null,     // Video track bitrate
-              audioBitrate: format.abr || null,     // Audio track bitrate
-              hasVideo: !!(format.vcodec && format.vcodec !== 'none'),
-              hasAudio: !!(
-                (format.acodec && format.acodec !== 'none') ||
-                format.resolution === 'audio only' ||
-                (format.vcodec === 'none' && format.ext !== 'mhtml' && (!format.protocol || !format.protocol.includes('mhtml')))
-              )
-            }))
-            .filter(f => f.url || f.manifestUrl) // Exclude entries missing stream links
-        : []
+      // Root level properties for compatibility with frontend/audio tab
+      audioUrl: bestAudio ? (bestAudio.url || bestAudio.manifestUrl) : null,
+      audioBitrate: bestAudio ? (bestAudio.audioBitrate || bestAudio.totalBitrate) : null,
+      ext: bestAudio ? bestAudio.ext : null,
+      filesize: bestAudio ? (bestAudio.filesize || bestAudio.filesizeApprox) : null,
+      
+      formats: mappedFormats
     };
   }
 

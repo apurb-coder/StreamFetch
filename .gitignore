@@ -1,2 +1,4 @@
 graphify-out/
 .agent/
+.agents
+skills-lock.json
