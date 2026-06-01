@@ -16,7 +16,7 @@ export default function QueueMonitor({
         <div className="flex items-center justify-between border-b border-hairline pb-4">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-gradient-end text-xl">analytics</span>
-            <h3 className="font-display-md text-on-surface text-md font-bold">Queue Sandbox Execution Monitor</h3>
+            <h3 className="font-display-md text-on-surface text-md font-bold">Queue Execution Monitor</h3>
             <span className="bg-primary-container/20 text-primary-container text-[11px] px-2 py-0.5 rounded-full font-bold">
               {activeJobs.length} Job{activeJobs.length > 1 ? 's' : ''}
             </span>
@@ -29,9 +29,9 @@ export default function QueueMonitor({
           </button>
         </div>
 
-        <div className="divide-y divide-hairline space-y-3">
+        <div className="flex flex-col divide-y divide-hairline">
           {activeJobs.map(job => (
-            <div key={job.id} className="pt-3 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            <div key={job.id} className="py-3.5 first:pt-2 last:pb-0 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
               
               <div className="flex gap-3 items-center min-w-0">
                 {/* Miniature thumbnail or loading ring */}
@@ -81,14 +81,7 @@ export default function QueueMonitor({
 
                 <div className="flex items-center gap-2">
                   {/* If completed, show selector or quick download */}
-                  {job.status === 'completed' && (
-                    <button 
-                      onClick={() => setActiveJobId(job.id)}
-                      className="bg-surface-container-highest text-on-surface hover:bg-primary-container hover:text-on-primary-container text-xs px-2.5 py-1.5 rounded transition-all font-bold cursor-pointer border-0"
-                    >
-                      Show Formats
-                    </button>
-                  )}
+
                   {job.status === 'failed' && (
                     <button 
                       onClick={() => { setActiveJobId(job.id); }}
@@ -101,7 +94,7 @@ export default function QueueMonitor({
                   <button 
                     onClick={() => removeJob(job.id)}
                     className="text-mute-dark hover:text-error hover:bg-error-container/10 p-1.5 rounded-lg transition-colors flex items-center justify-center cursor-pointer bg-transparent border-0"
-                    title="Remove job from sandboxed logs"
+                    title="Remove job from logs"
                   >
                     <span className="material-symbols-outlined text-[18px]">delete</span>
                   </button>

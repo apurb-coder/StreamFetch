@@ -7,6 +7,42 @@
 	},
 	"item": [
 		{
+			"name": "Check API Root Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						""
+					]
+				},
+				"description": "Verifies that the primary Express server is online and responding."
+			},
+			"response": []
+		},
+		{
+			"name": "Check System Health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/health",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"health"
+					]
+				},
+				"description": "Returns connection status for downstream databases (Redis) along with server runtime details."
+			},
+			"response": []
+		},
+		{
 			"name": "Handshake (Get Ephemeral Token)",
 			"request": {
 				"method": "GET",
@@ -15,6 +51,13 @@
 						"key": "User-Agent",
 						"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 						"type": "text"
+					},
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text",
+						"disabled": true,
+						"description": "Admin API Key bypass (optional, not checked on handshake)"
 					}
 				],
 				"url": {
@@ -35,7 +78,15 @@
 			"name": "Extract Links (Single Video)",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text",
+						"disabled": true,
+						"description": "Admin API Key bypass to test direct endpoints without dynamic signatures"
+					}
+				],
 				"body": {
 					"mode": "raw",
 					"raw": "{\n    \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n    \"quality\": \"best\"\n}",
@@ -63,7 +114,15 @@
 			"name": "Extract Audio Only (Single Video)",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text",
+						"disabled": true,
+						"description": "Admin API Key bypass to test direct endpoints without dynamic signatures"
+					}
+				],
 				"body": {
 					"mode": "raw",
 					"raw": "{\n    \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\"\n}",
@@ -92,7 +151,15 @@
 			"name": "Extract Links Batch (Multiple Videos)",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text",
+						"disabled": true,
+						"description": "Admin API Key bypass to test direct endpoints without dynamic signatures"
+					}
+				],
 				"body": {
 					"mode": "raw",
 					"raw": "{\n    \"urls\": [\n        \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n        \"https://www.youtube.com/watch?v=9bZkp7q19f0\"\n    ],\n    \"quality\": \"best\"\n}",
@@ -121,7 +188,15 @@
 			"name": "Get Formats List",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text",
+						"disabled": true,
+						"description": "Admin API Key bypass to test direct endpoints without dynamic signatures"
+					}
+				],
 				"body": {
 					"mode": "raw",
 					"raw": "{\n    \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\"\n}",
@@ -149,7 +224,15 @@
 			"name": "Check Extraction Status (Polling)",
 			"request": {
 				"method": "GET",
-				"header": [],
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text",
+						"disabled": true,
+						"description": "Admin API Key bypass (optional, not checked on status polling)"
+					}
+				],
 				"url": {
 					"raw": "{{baseUrl}}/api/extract/status/:jobId",
 					"host": [
@@ -173,6 +256,40 @@
 			"response": []
 		},
 		{
+			"name": "Proxy Media Stream (CORS Bypass)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{adminApiKey}}",
+						"type": "text",
+						"disabled": true,
+						"description": "Admin API Key bypass (optional, not checked on media proxy)"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/proxy?url=https%3A%2F%2Frr4---sn-5uaezn76.googlevideo.com%2Fvideoplayback%3Fkeep-sample-url",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"proxy"
+					],
+					"query": [
+						{
+							"key": "url",
+							"value": "https%3A%2F%2Frr4---sn-5uaezn76.googlevideo.com%2Fvideoplayback%3Fkeep-sample-url",
+							"description": "URL-encoded media stream URL to proxy"
+						}
+					]
+				},
+				"description": "Optimized streaming proxy using native fetch to resolve CORS blockages on YouTube streams in the frontend. It streams video data chunks sequentially."
+			},
+			"response": []
+		},
+		{
 			"name": "Get System Diagnostics (Protected Stats)",
 			"request": {
 				"method": "GET",
@@ -180,7 +297,8 @@
 					{
 						"key": "x-api-key",
 						"value": "{{adminApiKey}}",
-						"type": "text"
+						"type": "text",
+						"description": "Admin API Key used to authenticate system metrics diagnostics"
 					}
 				],
 				"url": {
@@ -212,9 +330,12 @@
 					"const hasApiKeyHeader = pm.request.headers.get(\"x-api-key\");",
 					"const useAdminBypass = hasApiKeyHeader && hasApiKeyHeader === adminApiKey;",
 					"",
-					"// 2. If bypassing or calling handshake route or checking status, skip signature generation",
+					"// 2. If bypassing, calling handshake/proxy/health routes, or checking status, skip signature generation",
 					"const path = pm.request.url.getPath();",
-					"if (!useAdminBypass && path !== \"/api/handshake\" && !path.startsWith(\"/api/extract/status/\")) {",
+					"const skipPaths = [\"/api/handshake\", \"/api/proxy\", \"/health\", \"/\", \"\"];",
+					"const shouldSkip = useAdminBypass || skipPaths.includes(path) || path.startsWith(\"/api/extract/status/\");",
+					"",
+					"if (!shouldSkip) {",
 					"    const now = Date.now();",
 					"    let token = pm.globals.get(\"yt2mp3_appToken\");",
 					"    let expiry = pm.globals.get(\"yt2mp3_appTokenExpiry\");",

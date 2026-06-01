@@ -31,7 +31,7 @@ export default function Navbar({ serverStatus, checkServer }) {
                 : 'bg-zinc-400 animate-spin'
             }`} />
             <span className="hidden sm:inline">
-              {serverStatus === 'online' ? 'Pipeline Connected' : serverStatus === 'offline' ? 'Sandbox Mode' : 'Connecting...'}
+              {serverStatus === 'online' ? 'Pipeline Connected' : serverStatus === 'offline' ? 'Server Offline' : 'Connecting...'}
             </span>
           </div>
         </div>

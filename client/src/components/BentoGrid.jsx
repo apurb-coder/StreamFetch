@@ -22,7 +22,7 @@ export default function BentoGrid() {
           <span className="material-symbols-outlined text-gradient-end text-3xl">security</span>
           <h4 className="font-display-md text-on-surface text-lg font-bold">Safe &amp; Ad-free</h4>
           <p className="text-on-surface-variant opacity-70 text-sm">
-            No intrusive ads, no script payloads. Just a secure, high-performance developer sandbox engineered for safety.
+            No intrusive ads, no script payloads. Just a secure, high-performance web client engineered for safety.
           </p>
         </div>
       </div>

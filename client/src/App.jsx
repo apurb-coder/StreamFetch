@@ -3,8 +3,8 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
 
 // Import modular utilities
-import { sha256 } from './utils/security';
 import { formatDuration, formatSize } from './utils/formatters';
+import * as apiService from './services/api';
 
 // Import modular components
 import Navbar from './components/Navbar';
@@ -12,7 +12,6 @@ import Hero from './components/Hero';
 import ToastContainer from './components/ToastContainer';
 import DownloaderCard from './components/DownloaderCard';
 import QueueMonitor from './components/QueueMonitor';
-import DiagnosticsPanel from './components/DiagnosticsPanel';
 import BentoGrid from './components/BentoGrid';
 import MuxingOverlay from './components/MuxingOverlay';
 import Footer from './components/Footer';
@@ -24,7 +23,6 @@ function App() {
   // Config state
   const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
   const [adminKey, setAdminKey] = useState(localStorage.getItem('yt2mp3_admin_key') || '');
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [serverStatus, setServerStatus] = useState('checking'); // 'online' | 'offline' | 'checking'
 
   // Input states
@@ -36,9 +34,6 @@ function App() {
   // Job states
   const [activeJobs, setActiveJobs] = useState([]);
   const [activeJobId, setActiveJobId] = useState(null); // Track primary job in downloader card
-  const [diagnostics, setDiagnostics] = useState(null);
-  const [showDiag, setShowDiag] = useState(false);
-  const [diagError, setDiagError] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -86,46 +81,7 @@ function App() {
 
     try {
       const downloadTrack = async (url, type, onProgress) => {
-        let response;
-        try {
-          response = await fetch(url);
-          if (!response.ok) throw new Error('Direct stream blocked');
-        } catch (e) {
-          console.warn(`[FFmpeg.wasm] Direct fetch failed for ${type}. Routing through local Express proxy fallback...`);
-          const proxyUrl = `${apiBase}/proxy?url=${encodeURIComponent(url)}`;
-          response = await fetch(proxyUrl);
-          if (!response.ok) {
-            throw new Error(`Media pipeline rejected download for ${type} track.`);
-          }
-        }
-
-        const contentLength = response.headers.get('content-length');
-        if (!contentLength) {
-          const blob = await response.blob();
-          onProgress(100);
-          return new Uint8Array(await blob.arrayBuffer());
-        }
-
-        const total = parseInt(contentLength, 10);
-        let loaded = 0;
-        const reader = response.body.getReader();
-        const chunks = [];
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          loaded += value.length;
-          onProgress(Math.round((loaded / total) * 100));
-        }
-
-        const allChunks = new Uint8Array(total);
-        let position = 0;
-        for (const chunk of chunks) {
-          allChunks.set(chunk, position);
-          position += chunk.length;
-        }
-        return allChunks;
+        return apiService.downloadTrackAxios(url, type, onProgress, apiBase);
       };
 
       // 1. Download Video
@@ -159,7 +115,7 @@ function App() {
       setMergeState(prev => ({ 
         ...prev, 
         status: 'merging', 
-        details: 'Multiplexing digital streams locally in WebAssembly sandboxed memory...' 
+        details: 'Multiplexing digital streams locally in WebAssembly memory...' 
       }));
 
       ffmpeg.on('progress', ({ progress }) => {
@@ -253,28 +209,20 @@ function App() {
     }, 1500);
 
     return () => clearInterval(timer);
-  }, [activeJobs, isDemoMode]);
+  }, [activeJobs]);
 
   const checkServer = async () => {
     setServerStatus('checking');
     try {
-      const res = await fetch(`${apiBase}/handshake`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          const tokenExpiry = (Date.now() + data.expiresInMs - 30000).toString();
-          localStorage.setItem('yt2mp3_token', data.token);
-          localStorage.setItem('yt2mp3_token_expiry', tokenExpiry);
-        }
+      const data = await apiService.checkServer(apiBase);
+      if (data.success) {
         setServerStatus('online');
-        setIsDemoMode(false);
       } else {
         throw new Error('Not responding correctly');
       }
     } catch (e) {
       setServerStatus('offline');
-      setIsDemoMode(true);
-      showToast('Backend offline. Switched to Simulation Mode.', 'warning');
+      showToast('Backend offline. Please start server.', 'error');
     }
   };
 
@@ -288,80 +236,25 @@ function App() {
     }
   };
 
-  // Proactive token refresh helper
-  const refreshHandshakeToken = async (force = false) => {
-    if (adminKey) return;
-    try {
-      const token = localStorage.getItem('yt2mp3_token');
-      const tokenExpiry = localStorage.getItem('yt2mp3_token_expiry');
-      
-      // Refresh if missing, close to expiry (within 2 mins), or forced
-      const isExpiringSoon = tokenExpiry && (Date.now() > parseInt(tokenExpiry, 10) - 120000);
-      if (!token || !tokenExpiry || isExpiringSoon || force) {
-        console.log('[Security] Proactively refreshing handshake token...');
-        const handshakeRes = await fetch(`${apiBase}/handshake`);
-        const data = await handshakeRes.json();
-        if (data.success) {
-          const newTokenExpiry = (Date.now() + data.expiresInMs - 30000).toString();
-          localStorage.setItem('yt2mp3_token', data.token);
-          localStorage.setItem('yt2mp3_token_expiry', newTokenExpiry);
-          console.log('[Security] Ephemeral token refreshed. Expiry margin:', Math.round((data.expiresInMs - 30000) / 1000), 's');
-        }
-      }
-    } catch (err) {
-      console.warn('[Security] Proactive handshake refresh failed:', err.message);
-    }
-  };
-
   // Periodic proactive handshake refresh scheduler
   useEffect(() => {
-    if (isDemoMode) return;
-    
-    refreshHandshakeToken();
+    apiService.refreshHandshakeToken(apiBase, adminKey);
     
     const interval = setInterval(() => {
-      refreshHandshakeToken();
+      apiService.refreshHandshakeToken(apiBase, adminKey);
     }, 30000); // Check every 30 seconds
     
     return () => clearInterval(interval);
-  }, [apiBase, adminKey, isDemoMode]);
-
-  // Cryptographic headers helper
-  const getSecurityHeaders = async (url = '') => {
-    if (adminKey) {
-      return {
-        'x-api-key': adminKey,
-        'Content-Type': 'application/json'
-      };
-    }
-
-    let token = localStorage.getItem('yt2mp3_token');
-    let tokenExpiry = localStorage.getItem('yt2mp3_token_expiry');
-
-    if (!token || !tokenExpiry || Date.now() > parseInt(tokenExpiry, 10)) {
-      await refreshHandshakeToken(true);
-      token = localStorage.getItem('yt2mp3_token');
-      tokenExpiry = localStorage.getItem('yt2mp3_token_expiry');
-      if (!token) {
-        throw new Error('Handshake denied');
-      }
-    }
-
-    const timestamp = Date.now().toString();
-    const signatureInput = `${token}${timestamp}${url}${SECRET_FORMULA}`;
-    const signature = await sha256(signatureInput);
-
-    return {
-      'x-app-token': token,
-      'x-app-timestamp': timestamp,
-      'x-app-signature': signature,
-      'Content-Type': 'application/json'
-    };
-  };
+  }, [apiBase, adminKey]);
 
   const handleConvert = async (e) => {
     if (e) e.preventDefault();
     setErrorMsg('');
+
+    if (serverStatus === 'offline') {
+      showToast('Backend server is offline. Please start the server and try again.', 'error');
+      return;
+    }
 
     const targetUrl = urlInput.trim();
     if (!targetUrl && activeTab !== 'batch') {
@@ -394,69 +287,54 @@ function App() {
     setActiveJobId(jobId);
     setUrlInput('');
 
-    if (isDemoMode) {
-      simulateJobProgress(jobId, activeTab, targetUrl);
-    } else {
-      try {
-        let endpoint = '/extract';
-        let body = { url: targetUrl, quality: videoQuality };
+    try {
+      const data = await apiService.extractMedia(apiBase, adminKey, targetUrl, videoQuality, activeTab);
+      
+      if (data.cached) {
+        // Instantly complete cached results
+        const completedJob = {
+          ...newJob,
+          status: 'completed',
+          progress: 100,
+          title: data.data?.title || data.formats?.title || 'Extracted Cached Stream',
+          duration: data.data?.duration || data.formats?.duration,
+          thumbnail: data.data?.thumbnail || data.formats?.thumbnail || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=300',
+          uploader: data.data?.uploader || data.formats?.uploader || 'Cached CDN Node',
+          results: data.data || data.formats
+        };
 
-        if (activeTab === 'audio') {
-          endpoint = '/extract';
-          body = { url: targetUrl };
-        } else if (activeTab === 'formats') {
-          endpoint = '/formats';
-          body = { url: targetUrl };
-        }
-
-        const headers = await getSecurityHeaders(targetUrl);
-        const res = await fetch(`${apiBase}${endpoint}`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body)
-        });
-
-        const data = await res.json();
-        if (res.status === 200 && data.cached) {
-          // Instantly complete cached results
-          const completedJob = {
-            ...newJob,
-            status: 'completed',
-            progress: 100,
-            title: data.data?.title || data.formats?.title || 'Extracted Cached Stream',
-            duration: data.data?.duration || data.formats?.duration,
-            thumbnail: data.data?.thumbnail || data.formats?.thumbnail || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=300',
-            uploader: data.data?.uploader || data.formats?.uploader || 'Cached CDN Node',
-            results: data.data || data.formats
-          };
-
-          setActiveJobs(prev => prev.map(job => job.id === jobId ? completedJob : job));
-          showToast('Loaded instantly from L1/L2 Cache!');
-        } else if (res.status === 202) {
-          // Standard background queuing path
-          setActiveJobs(prev => prev.map(job => {
-            if (job.id === jobId) {
-              return { ...job, id: data.jobId, status: 'waiting' };
-            }
-            return job;
-          }));
-          setActiveJobId(data.jobId);
-        } else {
-          throw new Error(data.message || data.error || 'Conversion failed');
-        }
-      } catch (err) {
+        setActiveJobs(prev => prev.map(job => job.id === jobId ? completedJob : job));
+        showToast('Loaded instantly from L1/L2 Cache!');
+      } else if (data.jobId) {
+        // Standard background queuing path
         setActiveJobs(prev => prev.map(job => {
           if (job.id === jobId) {
-            return { ...job, status: 'failed', title: 'Extraction failed', results: { error: err.message } };
+            return { ...job, id: data.jobId, status: 'waiting' };
           }
           return job;
         }));
-        showToast(err.message, 'error');
+        setActiveJobId(data.jobId);
+      } else {
+        throw new Error(data.message || data.error || 'Conversion failed');
       }
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Conversion failed';
+      setActiveJobs(prev => prev.map(job => {
+        if (job.id === jobId) {
+          return { ...job, status: 'failed', title: 'Extraction failed', results: { error: errMsg } };
+        }
+        return job;
+      }));
+      showToast(errMsg, 'error');
     }
   };
 
   const handleBatchConvert = async () => {
+    if (serverStatus === 'offline') {
+      showToast('Backend server is offline. Please start the server and try again.', 'error');
+      return;
+    }
+
     const urls = batchUrls
       .split('\n')
       .map(u => u.trim())
@@ -492,63 +370,52 @@ function App() {
 
       setActiveJobs(prev => [newJob, ...prev]);
 
-      if (isDemoMode) {
-        simulateJobProgress(jobId, 'audio', url);
-      } else {
-        try {
-          const headers = await getSecurityHeaders(url);
-          const res = await fetch(`${apiBase}/extract`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ url })
-          });
-          const data = await res.json();
-          if (res.status === 200 && data.cached) {
-            setActiveJobs(prev => prev.map(job => {
-              if (job.id === jobId) {
-                return {
-                  ...job,
-                  status: 'completed',
-                  progress: 100,
-                  title: data.data?.title || 'Extracted Audio',
-                  duration: data.data?.duration,
-                  thumbnail: data.data?.thumbnail,
-                  uploader: data.data?.uploader || 'Batch CDN Node',
-                  results: data.data
-                };
-              }
-              return job;
-            }));
-          } else if (res.status === 202) {
-            setActiveJobs(prev => prev.map(job => {
-              if (job.id === jobId) {
-                return { ...job, id: data.jobId };
-              }
-              return job;
-            }));
-          } else {
-            throw new Error(data.error || 'Failed batch setup');
-          }
-        } catch (err) {
+      try {
+        const data = await apiService.extractMedia(apiBase, adminKey, url, 'best', 'audio');
+        if (data.cached) {
           setActiveJobs(prev => prev.map(job => {
             if (job.id === jobId) {
-              return { ...job, status: 'failed', title: 'Failed batch entry', results: { error: err.message } };
+              return {
+                ...job,
+                status: 'completed',
+                progress: 100,
+                title: data.data?.title || 'Extracted Audio',
+                duration: data.data?.duration,
+                thumbnail: data.data?.thumbnail,
+                uploader: data.data?.uploader || 'Batch CDN Node',
+                results: data.data
+              };
             }
             return job;
           }));
+        } else if (data.jobId) {
+          setActiveJobs(prev => prev.map(job => {
+            if (job.id === jobId) {
+              return { ...job, id: data.jobId };
+            }
+            return job;
+          }));
+        } else {
+          throw new Error(data.error || 'Failed batch setup');
         }
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed batch entry';
+        setActiveJobs(prev => prev.map(job => {
+          if (job.id === jobId) {
+            return { ...job, status: 'failed', title: 'Failed batch entry', results: { error: errMsg } };
+          }
+          return job;
+        }));
       }
     }
   };
 
   // Poll real job status
   const pollJobStatus = async (jobId, type) => {
-    if (isDemoMode || jobId.toString().startsWith('job_') || jobId.toString().startsWith('batch_job_')) return;
+    if (jobId.toString().startsWith('job_') || jobId.toString().startsWith('batch_job_')) return;
     
     try {
-      const typeQuery = type === 'audio' ? '?type=audio' : type === 'formats' ? '?type=formats' : '';
-      const res = await fetch(`${apiBase}/extract/status/${jobId}${typeQuery}`);
-      const data = await res.json();
+      const data = await apiService.pollJobStatus(apiBase, jobId, type);
 
       if (data.success) {
         setActiveJobs(prev => prev.map(job => {
@@ -590,82 +457,6 @@ function App() {
     }
   };
 
-  // Simulated progress for Demo Mode
-  const simulateJobProgress = (jobId, type, url) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.floor(Math.random() * 15) + 8;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        
-        let mockTitle = "High-Performance Edge CDN Streaming Engine";
-        try {
-          const match = url.match(/[?&]v=([^&#]*)/);
-          if (match && match[1]) mockTitle = `YouTube Stream [ID: ${match[1]}]`;
-        } catch(e){}
-
-        setActiveJobs(prev => prev.map(job => {
-          if (job.id === jobId) {
-            return {
-              ...job,
-              status: 'completed',
-              progress: 100,
-              title: mockTitle,
-              duration: 642,
-              thumbnail: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=300',
-              uploader: 'TechStream Engineering',
-              results: {
-                audioUrl: '#',
-                ext: 'mp3',
-                audioBitrate: 320,
-                filesize: 8402918,
-                formats: [
-                  { formatId: '140', ext: 'm4a', bitrate: 128, filesize: 3450289, url: '#' },
-                  { formatId: '251', ext: 'webm', bitrate: 142, filesize: 3720391, url: '#' }
-                ]
-              }
-            };
-          }
-          return job;
-        }));
-        showToast('Extraction simulation complete!');
-      } else {
-        setActiveJobs(prev => prev.map(job => {
-          if (job.id === jobId) {
-            return {
-              ...job,
-              status: progress > 30 ? 'active' : 'waiting',
-              progress: progress,
-              title: progress > 30 ? 'Extracting codec elements...' : 'Acquiring worker thread...'
-            };
-          }
-          return job;
-        }));
-      }
-    }, 500);
-  };
-
-  // Fetch telemetry diagnostics
-  const fetchDiagnostics = async () => {
-    setDiagError(null);
-    try {
-      const res = await fetch(`${apiBase}/stats`, {
-        headers: {
-          'x-api-key': adminKey || 'default_dev_key'
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setDiagnostics(data);
-      } else {
-        throw new Error(data.message || 'Unauthorized api-key');
-      }
-    } catch (err) {
-      setDiagError(err.message);
-      showToast('Telemetry Access Denied', 'error');
-    }
-  };
 
   const removeJob = (id) => {
     setActiveJobs(prev => prev.filter(j => j.id !== id));
@@ -734,19 +525,6 @@ function App() {
           setActiveJobId={setActiveJobId}
           activeJobId={activeJobId}
           removeJob={removeJob}
-        />
-
-        {/* Diagnostics Telemetry Panel */}
-        <DiagnosticsPanel
-          showDiag={showDiag}
-          setShowDiag={setShowDiag}
-          fetchDiagnostics={fetchDiagnostics}
-          apiBase={apiBase}
-          setApiBase={setApiBase}
-          adminKey={adminKey}
-          setAdminKey={setAdminKey}
-          diagnostics={diagnostics}
-          diagError={diagError}
         />
 
         {/* Social Proof Bento Grid */}

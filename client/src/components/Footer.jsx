@@ -7,22 +7,8 @@ export default function Footer() {
         <div className="flex flex-col items-center md:items-start gap-2">
           <span className="font-display-md text-lg font-bold text-on-surface tracking-wide">StreamFetch</span>
           <p className="font-caption-mono text-caption-mono text-mute-dark text-xs">
-            © 2026 StreamFetch Pipeline. Built for high-capacity sandbox executions.
+            © 2026 StreamFetch Pipeline. Built for high-capacity digital stream extraction.
           </p>
-        </div>
-        <div className="flex gap-6">
-          <a className="font-caption-mono text-caption-mono text-mute-dark hover:text-on-surface transition-colors text-xs" href="#">
-            Terms
-          </a>
-          <a className="font-caption-mono text-caption-mono text-mute-dark hover:text-on-surface transition-colors text-xs" href="#">
-            Privacy
-          </a>
-          <a className="font-caption-mono text-caption-mono text-mute-dark hover:text-on-surface transition-colors text-xs" href="#">
-            GitHub
-          </a>
-          <a className="font-caption-mono text-caption-mono text-mute-dark hover:text-on-surface transition-colors text-xs" href="#">
-            Status
-          </a>
         </div>
       </div>
     </footer>

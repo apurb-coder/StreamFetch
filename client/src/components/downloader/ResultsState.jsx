@@ -158,7 +158,7 @@ export default function ResultsState({ activeJob, resetPrimaryJob, handleMuxDown
               {activeJob.title}
             </h2>
             <p className="text-on-surface-variant font-caption-mono text-xs">
-              {activeJob.uploader} • High Fidelity Pipeline
+              {activeJob.uploader}
             </p>
           </div>
         </div>
