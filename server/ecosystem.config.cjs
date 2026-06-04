@@ -3,7 +3,7 @@
  * Use this to scale the Express API horizontally across multiple cores.
  * 
  * Command to run:
- *   pm2 start ecosystem.config.js
+ *   pm2 start ecosystem.config.cjs
  */
 
 module.exports = {

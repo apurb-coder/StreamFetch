@@ -11,9 +11,9 @@
  * Falls back automatically and gracefully to a high-speed in-memory LRU cache if Redis is down/disconnected.
  */
 
-const IORedis = require('ioredis');
-const LRUCache = require('lru-cache');
-const config = require('../../config/default');
+import IORedis from 'ioredis';
+import LRUCache from 'lru-cache';
+import config from '../../config/default.js';
 
 class RateLimiter {
   constructor() {
@@ -232,4 +232,4 @@ class RateLimiter {
   }
 }
 
-module.exports = new RateLimiter();
+export default new RateLimiter();

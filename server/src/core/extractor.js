@@ -8,11 +8,16 @@
  * Includes worker crash auto-respawn and task isolation timeouts.
  */
 
-const { Worker } = require('worker_threads');
-const { EventEmitter } = require('events');
-const path = require('path');
-const config = require('../../config/default');
-const proxyManager = require('./proxyManager');
+import { Worker } from 'worker_threads';
+import { EventEmitter } from 'events';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import config from '../../config/default.js';
+import proxyManager from './proxyManager.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class ExtractionPool extends EventEmitter {
   constructor() {
@@ -202,4 +207,4 @@ class ExtractionPool extends EventEmitter {
   }
 }
 
-module.exports = new ExtractionPool();
+export default new ExtractionPool();

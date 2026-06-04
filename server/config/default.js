@@ -5,10 +5,10 @@
  * to configure caches, timeouts, proxy keys, and queue thresholds.
  */
 
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
 dotenv.config(); // Load local .env file
 
-module.exports = {
+export default {
   // Runtime environment configurations
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),

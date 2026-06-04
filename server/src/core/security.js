@@ -6,8 +6,8 @@
  * without needing user logins.
  */
 
-const crypto = require('crypto');
-const config = require('../../config/default');
+import crypto from 'crypto';
+import config from '../../config/default.js';
 
 // Secure random secret key generated at server startup.
 // Because it rotates on startup, attackers cannot forge tokens offline.
@@ -179,4 +179,4 @@ class SecurityManager {
   }
 }
 
-module.exports = new SecurityManager();
+export default new SecurityManager();

@@ -9,11 +9,15 @@
  *  - Routing: Mounts all validated endpoints at `/api`
  */
 
-const express = require('express');
-const helmet = require('helmet');
-const compression = require('compression');
-const config = require('../config/default');
-const jobProcessor = require('./queue/jobProcessor');
+import express from 'express';
+import helmet from 'helmet';
+import compression from 'compression';
+import config from '../config/default.js';
+import jobProcessor from './queue/jobProcessor.js';
+import rateLimiter from './queue/rateLimiter.js';
+import extractionPool from './core/extractor.js';
+import jobQueue from './queue/jobQueue.js';
+import apiRouter from './routes/api.js';
 
 // Start BullMQ Background Task Job Worker
 jobProcessor.start();
@@ -60,8 +64,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// 4. Connect REST API routing
-const apiRouter = require('./routes/api');
 app.use('/api', apiRouter);
 
 // 5. Mount BullMQ Queue Dashboard placeholder (Optional)
@@ -82,7 +84,6 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   let redisStatus = 'disconnected';
   try {
-    const rateLimiter = require('./queue/rateLimiter');
     redisStatus = rateLimiter.isRedisConnected ? 'connected' : 'disconnected';
   } catch (err) {
     // Fail-safe default
@@ -124,10 +125,6 @@ process.on('SIGTERM', () => {
     
     // Clean pool worker threads and Redis streams
     try {
-      const extractionPool = require('./core/extractor');
-      const jobProcessor = require('./queue/jobProcessor');
-      const jobQueue = require('./queue/jobQueue');
-      
       await extractionPool.shutdown();
       await jobProcessor.shutdown();
       await jobQueue.shutdown();

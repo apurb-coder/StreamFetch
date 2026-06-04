@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "High-performance unblocked YouTube metadata and download link extraction API",
   "main": "src/server.js",
+  "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "prod": "pm2-runtime start ecosystem.config.js",
-    "pm2:start": "pm2 start ecosystem.config.js",
-    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "prod": "pm2-runtime start ecosystem.config.cjs",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs",
     "pm2:logs": "pm2 logs",
     "pm2:monit": "pm2 monit"
   },

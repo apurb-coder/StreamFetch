@@ -11,10 +11,15 @@
  * to discard dead/blocked proxy gateways and maintain a pool of healthy tunnels.
  */
 
-const fs = require('fs').promises;
-const path = require('path');
-const { exec } = require('child_process');
-const config = require('../../config/default');
+import fs from 'fs/promises';
+import path from 'path';
+import { exec } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import config from '../../config/default.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class ProxyManager {
   constructor() {
@@ -188,4 +193,4 @@ class ProxyManager {
   }
 }
 
-module.exports = new ProxyManager();
+export default new ProxyManager();

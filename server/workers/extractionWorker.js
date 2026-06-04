@@ -8,14 +8,13 @@
  * Implements proxy credentials injection, connection retry policies, and clean response optimizations.
  */
 
-const { parentPort, workerData } = require('worker_threads');
-const { execFile } = require('child_process');
-const { promisify } = require('util');
-const path = require('path');
-const execFileAsync = promisify(execFile);
+import { parentPort, workerData } from 'worker_threads';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import ResponseOptimizer from '../src/utils/optimizer.js';
 
-// Load the optimizer utility to sanitize the extraction results
-const ResponseOptimizer = require('../src/utils/optimizer');
+const execFileAsync = promisify(execFile);
 
 class ExtractionWorker {
   constructor() {

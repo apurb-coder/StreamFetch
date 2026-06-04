@@ -7,7 +7,7 @@
  *  - Requested video extraction quality presets (360p up to 4K)
  */
 
-const { body, validationResult } = require('express-validator');
+import { body, validationResult } from 'express-validator';
 
 // Strict YouTube URL Regex: matches standard watch URLs, short youtu.be, embed, mobile forms
 const YOUTUBE_URL_REGEX =
@@ -59,7 +59,7 @@ const checkValidationResult = (req, res, next) => {
   next();
 };
 
-module.exports = {
+export {
   YOUTUBE_URL_REGEX,
   validateExtractionRequest,
   validateBatchRequest,

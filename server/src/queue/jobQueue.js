@@ -5,9 +5,9 @@
  * Includes connection resilience, fail-safe event hooks, and automated cleanup rules.
  */
 
-const { Queue } = require('bullmq');
-const IORedis = require('ioredis');
-const config = require('../../config/default');
+import { Queue } from 'bullmq';
+import IORedis from 'ioredis';
+import config from '../../config/default.js';
 
 class JobQueueManager {
   constructor() {
@@ -93,4 +93,4 @@ class JobQueueManager {
   }
 }
 
-module.exports = new JobQueueManager();
+export default new JobQueueManager();

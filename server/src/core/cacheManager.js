@@ -5,7 +5,7 @@
  * to speed up duplicate extraction runs and avoid API throttling from YouTube.
  */
 
-const LRUCache = require('lru-cache');
+import LRUCache from 'lru-cache';
 
 class CacheManager {
   constructor() {
@@ -93,4 +93,4 @@ class CacheManager {
   }
 }
 
-module.exports = new CacheManager();
+export default new CacheManager();

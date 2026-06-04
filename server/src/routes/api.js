@@ -12,20 +12,21 @@
  * Utilizes rate limit guards and strictly enforces request body validations.
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 
-const extractionPool = require('../core/extractor');
-const cacheManager = require('../core/cacheManager');
-const rateLimiter = require('../queue/rateLimiter');
-const ResponseOptimizer = require('../utils/optimizer');
-const security = require('../core/security');
-const jobQueue = require('../queue/jobQueue');
-const { 
+import extractionPool from '../core/extractor.js';
+import cacheManager from '../core/cacheManager.js';
+import rateLimiter from '../queue/rateLimiter.js';
+import ResponseOptimizer from '../utils/optimizer.js';
+import security from '../core/security.js';
+import jobQueue from '../queue/jobQueue.js';
+import { 
   validateExtractionRequest, 
   validateBatchRequest, 
   checkValidationResult 
-} = require('../utils/validator');
+} from '../utils/validator.js';
+import config from '../../config/default.js';
 
 // Apply rate limiting middleware to all incoming API transactions
 router.use(rateLimiter.middleware());
@@ -414,7 +415,6 @@ router.get('/extract/status/:jobId', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   const apiKey = req.headers['x-api-key'];
-  const config = require('../../config/default');
 
   if (!apiKey || apiKey !== config.adminApiKey) {
     return res.status(401).json({
@@ -500,5 +500,5 @@ router.get('/proxy', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
 

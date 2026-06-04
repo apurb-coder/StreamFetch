@@ -8,11 +8,11 @@
  * Integrates directly with our underlying `ExtractionPool` thread manager.
  */
 
-const { Worker } = require('bullmq');
-const IORedis = require('ioredis');
-const config = require('../../config/default');
-const extractionPool = require('../core/extractor');
-const cacheManager = require('../core/cacheManager');
+import { Worker } from 'bullmq';
+import IORedis from 'ioredis';
+import config from '../../config/default.js';
+import extractionPool from '../core/extractor.js';
+import cacheManager from '../core/cacheManager.js';
 
 class JobProcessor {
   constructor() {
@@ -113,4 +113,4 @@ class JobProcessor {
   }
 }
 
-module.exports = new JobProcessor();
+export default new JobProcessor();

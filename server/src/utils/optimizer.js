@@ -115,4 +115,4 @@ class ResponseOptimizer {
   }
 }
 
-module.exports = ResponseOptimizer;
+export default ResponseOptimizer;
