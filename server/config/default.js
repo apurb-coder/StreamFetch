@@ -35,7 +35,7 @@ export default {
     binaryPath: process.env.YT_DLP_PATH || 'yt-dlp'
   },
 
-  // Rate Limiting Configurations (Token-Bucket details)
+  // Rate Limiting Configurations (sliding window log details)
   rateLimits: {
     global: {
       points: 10,       // 10 requests allowed globally
@@ -48,7 +48,7 @@ export default {
       blockDuration: 60 // Block for 60 seconds if limit hit
     },
     user: {
-      points: 30,       // 30 requests allowed
+      points: 30,       // 30 requests allowed if you have api-key in x-api-key header
       duration: 60,     // per 60 seconds (1 minute)
       blockDuration: 120 // Block for 120 seconds if limit hit
     }

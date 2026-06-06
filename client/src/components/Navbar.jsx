@@ -5,8 +5,9 @@ export default function Navbar({ serverStatus, checkServer }) {
     <nav className="bg-canvas-dark border-b border-hairline sticky top-0 z-50">
       <div className="flex justify-between items-center h-16 px-gutter w-full max-w-7xl mx-auto">
         <div className="flex items-center gap-8">
-          <a className="font-display-md text-display-md font-bold text-gradient-end tracking-tighter" href="#">
-            StreamFetch
+          <a className="flex items-center gap-2.5 font-display-md text-display-md font-bold text-gradient-end tracking-tighter" href="#">
+            <img src="/favicon.png" alt="StreamFetch Logo" className="w-8 h-8 rounded-lg object-cover" />
+            <span>StreamFetch</span>
           </a>
         </div>
 

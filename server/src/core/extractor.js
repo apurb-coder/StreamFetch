@@ -6,7 +6,9 @@
  * to secure optimal, non-blocking throughput.
  * 
  * Includes worker crash auto-respawn and task isolation timeouts.
+ * This is the Manager of workers: Manages the workers, initiates the workers, if worker does safely closes it and replace it with new workers, distributes tasks among workers
  */
+
 
 import { Worker } from 'worker_threads';
 import { EventEmitter } from 'events';

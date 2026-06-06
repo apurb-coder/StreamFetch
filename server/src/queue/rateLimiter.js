@@ -12,7 +12,7 @@
  */
 
 import IORedis from 'ioredis';
-import LRUCache from 'lru-cache';
+import LRUCache from 'lru-cache'; // if redis fails, we will use this to maintain a LRU-cache locally
 import config from '../../config/default.js';
 
 class RateLimiter {
@@ -211,6 +211,13 @@ class RateLimiter {
 
         // 3. Verify user API Key quota
         if (apiKey !== 'anonymous') {
+          if (apiKey !== config.adminApiKey) {
+            return res.status(401).json({
+              success: false,
+              error: 'Unauthorized',
+              message: 'Invalid API Key'
+            });
+          }
           const userAllowed = await this.checkRateLimit(apiKey, 'perUser');
           if (!userAllowed) {
             return res.status(429).json({
