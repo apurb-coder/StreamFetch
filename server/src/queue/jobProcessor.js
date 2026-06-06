@@ -6,6 +6,8 @@
  * when the server experiences high traffic surges.
  * 
  * Integrates directly with our underlying `ExtractionPool` thread manager.
+ * 
+ * It consumes the JOBS from the queue and give it to the extractor.js(Manager of workers)
  */
 
 import { Worker } from 'bullmq';
