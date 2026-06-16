@@ -20,7 +20,7 @@ export default function DownloaderCard({
 }) {
   return (
     <section className="max-w-3xl mx-auto px-gutter pb-16">
-      <div className="bg-surface-muted border border-hairline rounded-xl p-6 md:p-8 shadow-2xl relative overflow-hidden state-transition" id="downloader-card">
+      <div className="bg-surface border border-hairline rounded-xl p-6 md:p-8 shadow-none relative overflow-hidden state-transition" id="downloader-card">
         
         {/* 1. INPUT INITIAL STATE */}
         {!activeJob && (

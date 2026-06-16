@@ -106,7 +106,7 @@ export default function ResultsState({ activeJob, resetPrimaryJob, handleMuxDown
         {formatRows.map((opt, idx) => (
           <div 
             key={idx}
-            className="flex items-center justify-between p-3 bg-canvas-dark border border-hairline rounded-lg hover:border-primary-container/40 transition-colors group"
+            className="flex items-center justify-between p-3 bg-canvas-dark border border-outline rounded-md hover:border-primary transition-colors group"
           >
             <div className="flex flex-col">
               <span className="font-label-sm text-on-surface text-sm font-semibold">{opt.label}</span>
@@ -115,17 +115,17 @@ export default function ResultsState({ activeJob, resetPrimaryJob, handleMuxDown
             {opt.isSilent ? (
               <button 
                 onClick={() => handleMuxDownload(opt, job)}
-                className="bg-surface-container-highest p-2 rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-all flex items-center justify-center cursor-pointer text-on-surface border-0 shrink-0"
+                className="bg-surface border border-outline p-2 rounded-sm hover:bg-primary hover:text-white transition-colors flex items-center justify-center cursor-pointer text-on-surface shrink-0"
                 title="Combine silent video with premium audio in browser via FFmpeg WASM"
               >
-                <span className="material-symbols-outlined text-[20px] text-gradient-end animate-pulse">hub</span>
+                <span className="material-symbols-outlined text-[20px] text-accent group-hover:text-white">hub</span>
               </button>
             ) : (
               <a 
                 href={opt.url} 
                 target="_blank" 
                 rel="noreferrer" 
-                className="bg-surface-container-highest p-2 rounded-lg group-hover:bg-primary-container group-hover:text-on-primary-container transition-all flex items-center justify-center cursor-pointer text-on-surface shrink-0"
+                className="bg-surface border border-outline p-2 rounded-sm group-hover:bg-primary group-hover:text-white transition-colors flex items-center justify-center cursor-pointer text-on-surface shrink-0"
               >
                 <span className="material-symbols-outlined text-[20px]">download</span>
               </a>
@@ -141,14 +141,14 @@ export default function ResultsState({ activeJob, resetPrimaryJob, handleMuxDown
       <div className="grid md:grid-cols-2 gap-8">
         {/* Thumbnail Column */}
         <div className="space-y-4">
-          <div className="relative group aspect-video rounded-xl overflow-hidden border border-hairline">
+          <div className="relative group aspect-video rounded-sm overflow-hidden border border-outline">
             <img 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
               src={activeJob.thumbnail || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=300'} 
               alt="Cinematic stream thumbnail"
             />
             {activeJob.duration && (
-              <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-caption-mono text-white text-xs font-mono font-bold">
+              <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-sm text-caption-mono text-white text-xs font-mono font-bold">
                 {formatDuration(activeJob.duration)}
               </div>
             )}
@@ -166,14 +166,14 @@ export default function ResultsState({ activeJob, resetPrimaryJob, handleMuxDown
         {/* Options Column */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-label-sm text-mute-dark uppercase tracking-widest text-xs font-bold">
+            <h3 className="font-label-sm text-mute-dark uppercase tracking-widest text-[10px] font-bold">
               Available Formats
             </h3>
             <button 
-              className="text-primary font-label-sm hover:underline text-xs font-bold cursor-pointer"
+              className="text-primary font-caption-mono hover:text-primary-hover text-[11px] font-bold uppercase tracking-wider cursor-pointer border-0 bg-transparent"
               onClick={resetPrimaryJob}
             >
-              New Link
+              [ NEW LINK ]
             </button>
           </div>
           

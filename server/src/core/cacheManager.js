@@ -5,7 +5,7 @@
  * to speed up duplicate extraction runs and avoid API throttling from YouTube.
  */
 
-import LRUCache from 'lru-cache';
+import { LRUCache } from 'lru-cache';
 
 class CacheManager {
   constructor() {

@@ -34,7 +34,7 @@ export default function InputForm({
               <span className="material-symbols-outlined">link</span>
             </div>
             <input 
-              className="w-full h-input-height bg-canvas-dark border border-hairline rounded-lg pl-12 pr-24 text-on-surface placeholder:text-mute-dark focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none transition-all font-medium text-sm"
+              className="w-full h-input-height bg-canvas-dark border border-outline rounded-md pl-12 pr-24 text-on-surface placeholder:text-mute-dark focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-medium text-sm"
               id="url-input" 
               placeholder="Paste your YouTube link here..." 
               type="text"
@@ -43,7 +43,7 @@ export default function InputForm({
             />
             <button 
               type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-surface-container-highest text-on-surface px-4 py-1.5 rounded text-xs font-semibold hover:bg-surface-variant transition-colors cursor-pointer" 
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-surface border border-outline text-on-surface px-4 py-1.5 rounded-sm text-xs font-semibold hover:border-accent transition-colors cursor-pointer" 
               onClick={pasteFromClipboard}
             >
               Paste
@@ -53,7 +53,7 @@ export default function InputForm({
           <div>
             <textarea 
               rows="4"
-              className="w-full bg-canvas-dark border border-hairline rounded-lg p-4 text-on-surface placeholder:text-mute-dark focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none transition-all font-mono text-sm leading-relaxed"
+              className="w-full bg-canvas-dark border border-outline rounded-md p-4 text-on-surface placeholder:text-mute-dark focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-mono text-sm leading-relaxed"
               placeholder="Paste multiple links (one per line, e.g.)&#13;https://www.youtube.com/watch?v=123&#13;https://www.youtube.com/watch?v=456"
               value={batchUrls}
               onChange={(e) => setBatchUrls(e.target.value)}
@@ -67,7 +67,7 @@ export default function InputForm({
         <div className="w-full md:flex-1">
           <button 
             type="submit"
-            className="w-full h-input-height bg-gradient-end text-white font-display-md flex items-center justify-center gap-3 rounded-lg hover:brightness-110 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,77,77,0.3)] cursor-pointer text-lg font-bold"
+            className="w-full h-input-height bg-primary text-white font-display-md flex items-center justify-center gap-3 rounded-sm hover:bg-primary-hover active:scale-[0.98] transition-all cursor-pointer text-base uppercase font-bold tracking-wider border border-primary/20 shadow-md hover:shadow-primary/10"
           >
             <span className="material-symbols-outlined">bolt</span>
             {activeTab === 'batch' ? 'Enqueue Batch Task' : 'Fetch Content'}

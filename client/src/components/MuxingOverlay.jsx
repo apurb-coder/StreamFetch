@@ -5,34 +5,34 @@ export default function MuxingOverlay({ mergeState, setMergeState }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in animate-duration-300">
-      <div className="relative w-full max-w-lg bg-surface-muted border-2 border-primary-container/40 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_rgba(255,77,77,0.15)] space-y-6 overflow-hidden">
+      <div className="relative w-full max-w-lg bg-surface border border-outline rounded-lg p-6 md:p-8 shadow-2xl space-y-6 overflow-hidden">
         {/* Top scanning grid lines animation */}
         <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gradient-end to-transparent animate-pulse" />
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-primary/45" />
 
         {/* Header info */}
         <div className="flex items-center gap-4 relative">
-          <div className="bg-primary-container/20 p-3 rounded-xl border border-primary-container/30 text-gradient-end animate-pulse">
+          <div className="bg-primary-container/20 p-3 rounded-sm border border-primary/20 text-primary">
             <span className="material-symbols-outlined text-[32px]">hub</span>
           </div>
           <div>
-            <h3 className="font-display-md text-on-surface text-xl font-bold tracking-tight">
+            <h3 className="font-display-md text-on-surface text-xl font-bold tracking-tight uppercase">
               Frontend Muxing Pipeline
             </h3>
             <p className="font-caption-mono text-mute-dark text-xs uppercase tracking-wider">
-              Engine Status: <span className="text-gradient-end font-semibold">{mergeState.status}</span>
+              Engine Status: <span className="text-primary font-semibold">{mergeState.status}</span>
             </p>
           </div>
         </div>
 
         {/* Description logs */}
-        <div className="bg-canvas-dark border border-hairline p-4 rounded-xl space-y-3 font-mono text-xs text-mute-dark">
+        <div className="bg-canvas-dark border border-outline p-4 rounded-lg space-y-3 font-mono text-xs text-mute-dark">
           <div className="flex items-center justify-between text-on-surface">
             <span>Task Stream:</span>
             <span className="text-primary font-bold">Muxing High-Res Audio/Video</span>
           </div>
-          <div className="h-[1px] bg-hairline" />
-          <div className="space-y-2">
+          <div className="h-[1px] bg-outline" />
+          <div className="space-y-2 font-caption-mono">
             {/* Step 1: Download Video */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -45,9 +45,9 @@ export default function MuxingOverlay({ mergeState, setMergeState }) {
               </div>
               <span className="font-bold text-on-surface">{mergeState.videoProgress}%</span>
             </div>
-            <div className="w-full bg-canvas-dark border border-hairline h-1 rounded-full overflow-hidden">
+            <div className="w-full bg-canvas-dark border border-outline h-1.5 rounded-sm overflow-hidden">
               <div 
-                className="bg-gradient-to-r from-gradient-end to-primary h-full transition-all duration-200" 
+                className="bg-primary h-full transition-all duration-200" 
                 style={{ width: `${mergeState.videoProgress}%` }}
               />
             </div>
@@ -64,9 +64,9 @@ export default function MuxingOverlay({ mergeState, setMergeState }) {
               </div>
               <span className="font-bold text-on-surface">{mergeState.audioProgress}%</span>
             </div>
-            <div className="w-full bg-canvas-dark border border-hairline h-1 rounded-full overflow-hidden">
+            <div className="w-full bg-canvas-dark border border-outline h-1.5 rounded-sm overflow-hidden">
               <div 
-                className="bg-gradient-to-r from-gradient-end to-primary h-full transition-all duration-200" 
+                className="bg-primary h-full transition-all duration-200" 
                 style={{ width: `${mergeState.audioProgress}%` }}
               />
             </div>
@@ -91,16 +91,16 @@ export default function MuxingOverlay({ mergeState, setMergeState }) {
               <div className="space-y-2 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[16px] text-gradient-end animate-spin">
+                    <span className="material-symbols-outlined text-[16px] text-primary animate-spin">
                       progress_activity
                     </span>
                     <span>Muxing Tracks in WebAssembly memory</span>
                   </div>
                   <span className="font-bold text-on-surface">{mergeState.mergeProgress}%</span>
                 </div>
-                <div className="w-full bg-canvas-dark border border-hairline h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-canvas-dark border border-outline h-1.5 rounded-sm overflow-hidden">
                   <div 
-                    className="bg-gradient-to-r from-primary to-gradient-end h-full transition-all duration-200" 
+                    className="bg-primary h-full transition-all duration-200" 
                     style={{ width: `${mergeState.mergeProgress}%` }}
                   />
                 </div>
@@ -112,8 +112,8 @@ export default function MuxingOverlay({ mergeState, setMergeState }) {
         {/* Current details status */}
         <div className="text-center space-y-2">
           {mergeState.status === 'failed' ? (
-            <div className="p-4 bg-error-container/10 border border-error/20 rounded-xl space-y-2 text-left">
-              <div className="flex items-center gap-2 text-error font-bold text-sm">
+            <div className="p-4 bg-error-container/10 border border-error/20 rounded-lg space-y-2 text-left">
+              <div className="flex items-center gap-2 text-error font-bold text-sm uppercase font-display-md tracking-tight">
                 <span className="material-symbols-outlined">warning</span>
                 <span>Pipeline Muxing Interrupted</span>
               </div>
@@ -127,17 +127,17 @@ export default function MuxingOverlay({ mergeState, setMergeState }) {
         </div>
 
         {/* Buttons row */}
-        <div className="flex items-center justify-center pt-2">
+        <div className="flex items-center justify-center pt-2 font-body-md">
           {mergeState.status === 'failed' ? (
             <button
               type="button"
               onClick={() => setMergeState(prev => ({ ...prev, status: 'idle' }))}
-              className="bg-error-container/20 text-error hover:bg-error-container/30 px-6 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0"
+              className="bg-error-container/20 text-error hover:bg-error-container/30 px-6 py-2.5 rounded-sm text-xs font-bold transition-all cursor-pointer border-0 uppercase tracking-wider"
             >
               Dismiss & Return
             </button>
           ) : mergeState.status === 'completed' ? (
-            <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold animate-bounce">
+            <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold animate-bounce uppercase font-display-md tracking-tight">
               <span className="material-symbols-outlined">check_circle</span>
               <span>Pipeline Execution Completed!</span>
             </div>
@@ -148,7 +148,7 @@ export default function MuxingOverlay({ mergeState, setMergeState }) {
                 // Quick reload or reset to cancel
                 window.location.reload();
               }}
-              className="text-xs text-mute-dark hover:text-error transition-colors font-bold cursor-pointer underline border-0 bg-transparent text-white"
+              className="text-xs text-mute-dark hover:text-error transition-colors font-bold cursor-pointer underline border-0 bg-transparent uppercase tracking-wider font-caption-mono"
             >
               Abort Muxing Task
             </button>

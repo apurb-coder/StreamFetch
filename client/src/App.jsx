@@ -484,7 +484,7 @@ function App() {
   const activeJob = activeJobs.find(j => j.id === activeJobId);
 
   return (
-    <div className="min-h-screen bg-canvas-dark text-on-surface font-body-md selection:bg-primary-container selection:text-on-primary-container">
+    <div className="min-h-screen bg-canvas-dark text-on-surface font-body-md selection:bg-primary selection:text-white">
       {/* TopNavBar */}
       <Navbar 
         serverStatus={serverStatus} 

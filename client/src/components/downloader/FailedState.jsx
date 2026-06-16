@@ -18,7 +18,7 @@ export default function FailedState({ activeJob, resetPrimaryJob }) {
         )}
       </div>
       <button 
-        className="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-lg font-bold text-xs scale-95 active:scale-90 transition-transform cursor-pointer"
+        className="bg-primary text-white hover:bg-primary-hover px-6 py-2.5 rounded-sm font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer border border-primary/20"
         onClick={resetPrimaryJob}
       >
         Return &amp; Try Again

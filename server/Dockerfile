@@ -48,4 +48,4 @@ ENV YT_DLP_PATH=yt-dlp
 ENV REDIS_URL=redis://redis:6379
 
 # Execute server using PM2 container runtime clustering
-CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+CMD ["pm2-runtime", "start", "ecosystem.config.cjs"]

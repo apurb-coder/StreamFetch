@@ -12,7 +12,7 @@
  */
 
 import IORedis from 'ioredis';
-import LRUCache from 'lru-cache'; // if redis fails, we will use this to maintain a LRU-cache locally
+import { LRUCache } from 'lru-cache'; // if redis fails, we will use this to maintain a LRU-cache locally
 import config from '../../config/default.js';
 
 class RateLimiter {
