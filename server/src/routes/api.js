@@ -56,95 +56,49 @@ router.get('/handshake', (req, res) => {
 });
 
 /**
- * POST /api/extract
+ * POST /api/extract & /api/extract/audio
  * Extracts direct stream links for a single YouTube URL.
  * Checks cache first, otherwise queues a background job.
  */
 router.post(
-  '/extract',
+  ['/extract', '/extract/audio'],
   security.verifySignatureMiddleware(),
   validateExtractionRequest,
   checkValidationResult,
   async (req, res) => {
     const { url, quality } = req.body;
+    const isAudio = req.path.includes('audio');
+    const resolvedQuality = isAudio ? 'best' : (quality || 'best');
 
     try {
       // 1. Check L1/L2 caches first
-      const cacheKey = `extract:${url}:${quality || 'best'}`;
+      const cacheKey = `extract:${url}:${resolvedQuality}`;
       const cached = cacheManager.get(cacheKey);
       
       if (cached) {
         return res.json({
           success: true,
-          message: 'Video links extracted successfully',
+          message: `${isAudio ? 'Audio' : 'Video'} links extracted successfully`,
           cached: true,
           data: { cached: true, ...cached }
         });
       }
 
       // 2. Queue the task to BullMQ
-      const jobId = await jobQueue.addJob(url, quality);
+      const jobId = await jobQueue.addJob(url, resolvedQuality);
       
       res.status(202).json({
         success: true,
-        message: 'Extraction task queued successfully',
+        message: `${isAudio ? 'Audio extraction' : 'Extraction'} task queued successfully`,
         jobId: jobId,
         status: 'waiting'
       });
 
     } catch (error) {
-      console.error('[API Router] Extraction queueing failed for URL:', url, error);
+      console.error(`[API Router] ${isAudio ? 'Audio ' : ''}Extraction queueing failed for URL:`, url, error);
       res.status(500).json({
         success: false,
-        error: 'Failed to queue extraction task',
-        message: error.message
-      });
-    }
-  }
-);
-
-/**
- * POST /api/extract/audio
- * Legacy wrapper: extracts direct stream links and metadata for a YouTube URL.
- * Delegates entirely to the unified /api/extract pipeline.
- */
-router.post(
-  '/extract/audio',
-  security.verifySignatureMiddleware(),
-  validateExtractionRequest,
-  checkValidationResult,
-  async (req, res) => {
-    const { url } = req.body;
-
-    try {
-      // 1. Check L1/L2 caches first using the unified 'best' cache key
-      const cacheKey = `extract:${url}:best`;
-      const cached = cacheManager.get(cacheKey);
-
-      if (cached) {
-        return res.json({
-          success: true,
-          message: 'Audio links extracted successfully',
-          cached: true,
-          data: { cached: true, ...cached }
-        });
-      }
-
-      // 2. Queue the task to BullMQ
-      const jobId = await jobQueue.addJob(url, 'best');
-      
-      res.status(202).json({
-        success: true,
-        message: 'Audio extraction task queued successfully',
-        jobId: jobId,
-        status: 'waiting'
-      });
-
-    } catch (error) {
-      console.error('[API Router] Audio extraction queueing failed for URL:', url, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to queue audio extraction task',
+        error: `Failed to queue ${isAudio ? 'audio ' : ''}extraction task`,
         message: error.message
       });
     }
@@ -296,25 +250,12 @@ router.get('/extract/status/:jobId', async (req, res) => {
       // Apply type filters to format the output matching corresponding endpoints
       if (type === 'audio') {
         let audioFormats = data.formats.filter(f => f.hasAudio && !f.hasVideo);
-
+        if (audioFormats.length === 0) audioFormats = data.formats.filter(f => f.hasAudio);
         if (audioFormats.length === 0) {
-          audioFormats = data.formats.filter(f => f.hasAudio);
+          return res.status(404).json({ success: false, error: 'No audio streams found for this video' });
         }
 
-        if (audioFormats.length === 0) {
-          return res.status(404).json({
-            success: false,
-            error: 'No audio streams found for this video'
-          });
-        }
-
-        const sortedAudioFormats = [...audioFormats].sort((a, b) => {
-          const bitrateA = a.audioBitrate || a.totalBitrate || 0;
-          const bitrateB = b.audioBitrate || b.totalBitrate || 0;
-          return bitrateB - bitrateA;
-        });
-
-        const bestAudio = sortedAudioFormats[0];
+        const bestAudio = [...audioFormats].sort((a, b) => (b.audioBitrate || b.totalBitrate || 0) - (a.audioBitrate || a.totalBitrate || 0))[0];
 
         return res.json({
           success: true,
@@ -437,9 +378,9 @@ router.get('/stats', async (req, res) => {
     uptimeSeconds: process.uptime(),
     memoryHeapUsage: process.memoryUsage(),
     cacheMetrics: cacheManager.getStats(),
-    activeWorkersCount: extractionPool.workers.length,
+    activeWorkersCount: config.extractor.maxWorkers || 4,
     activeJobsPending: extractionPool.activeJobs.size,
-    queuedJobsWaiting: extractionPool.queue.length,
+    queuedJobsWaiting: 0,
     bullmqQueueStats
   });
 });

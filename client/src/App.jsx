@@ -51,18 +51,40 @@ function App() {
   const handleMuxDownload = async (opt, job) => {
     const videoUrl = opt.url;
     
-    // Find best audio URL (fallback check)
-    let audioUrl = job.results?.audioUrl;
-    if (!audioUrl && Array.isArray(job.results?.formats)) {
+    // Find best audio format compatible with mp4 copy (aac)
+    let audioUrl = null;
+    let selectedAudioFormat = null;
+    let canCopyAudio = false;
+
+    if (job.results && Array.isArray(job.results.formats)) {
       const audioFormats = job.results.formats.filter(f => f.hasAudio && !f.hasVideo);
-      const sortedAudio = [...audioFormats].sort((a, b) => {
-        const brA = a.audioBitrate || a.totalBitrate || 0;
-        const brB = b.audioBitrate || b.totalBitrate || 0;
-        return brB - brA;
+      const aacFormats = audioFormats.filter(f => {
+        const codec = (f.acodec || '').toLowerCase();
+        return codec.includes('mp4a') || codec.includes('aac') || (f.ext || '').toLowerCase() === 'm4a';
       });
-      if (sortedAudio.length > 0) {
-        audioUrl = sortedAudio[0].url || sortedAudio[0].manifestUrl;
+
+      if (aacFormats.length > 0) {
+        aacFormats.sort((a, b) => (b.audioBitrate || b.totalBitrate || 0) - (a.audioBitrate || a.totalBitrate || 0));
+        selectedAudioFormat = aacFormats[0];
+        audioUrl = selectedAudioFormat.url || selectedAudioFormat.manifestUrl;
+        canCopyAudio = true;
+      } else {
+        const sortedAudio = [...audioFormats].sort((a, b) => {
+          const brA = a.audioBitrate || a.totalBitrate || 0;
+          const brB = b.audioBitrate || b.totalBitrate || 0;
+          return brB - brA;
+        });
+        if (sortedAudio.length > 0) {
+          selectedAudioFormat = sortedAudio[0];
+          audioUrl = selectedAudioFormat.url || selectedAudioFormat.manifestUrl;
+          const codec = (selectedAudioFormat.acodec || '').toLowerCase();
+          canCopyAudio = codec.includes('mp4a') || codec.includes('aac');
+        }
       }
+    }
+
+    if (!audioUrl) {
+      audioUrl = job.results?.audioUrl;
     }
     
     if (!videoUrl || !audioUrl) {
@@ -84,17 +106,16 @@ function App() {
         return apiService.downloadTrackAxios(url, type, onProgress, apiBase);
       };
 
-      // 1. Download Video
-      setMergeState(prev => ({ ...prev, details: 'Downloading silent high-resolution video stream...' }));
-      const videoData = await downloadTrack(videoUrl, 'video', (prog) => {
-        setMergeState(prev => ({ ...prev, videoProgress: prog }));
-      });
-
-      // 2. Download Audio
-      setMergeState(prev => ({ ...prev, details: 'Downloading high-fidelity lossless audio track...' }));
-      const audioData = await downloadTrack(audioUrl, 'audio', (prog) => {
-        setMergeState(prev => ({ ...prev, audioProgress: prog }));
-      });
+      // 1 & 2. Download Video and Audio concurrently to utilize full bandwidth
+      setMergeState(prev => ({ ...prev, details: 'Downloading video and audio streams concurrently...' }));
+      const [videoData, audioData] = await Promise.all([
+        downloadTrack(videoUrl, 'video', (prog) => {
+          setMergeState(prev => ({ ...prev, videoProgress: prog }));
+        }),
+        downloadTrack(audioUrl, 'audio', (prog) => {
+          setMergeState(prev => ({ ...prev, audioProgress: prog }));
+        })
+      ]);
 
       // 3. Load FFmpeg.wasm
       setMergeState(prev => ({ ...prev, status: 'loading', details: 'Activating frontend WebAssembly transcode engine...' }));
@@ -124,18 +145,26 @@ function App() {
 
       const videoExt = opt.format?.ext || 'mp4';
       const inputVideo = `input_video.${videoExt}`;
-      const inputAudio = 'input_audio.mp3';
+      
+      const audioCodec = (selectedAudioFormat?.acodec || '').toLowerCase();
+      let audioExt = 'mp3';
+      if (audioCodec.includes('mp4a') || audioCodec.includes('aac')) {
+        audioExt = 'm4a';
+      } else if (audioCodec.includes('opus')) {
+        audioExt = 'webm';
+      }
+      const inputAudio = `input_audio.${audioExt}`;
       const outputVideo = 'output_merged.mp4';
 
       await ffmpeg.writeFile(inputVideo, videoData);
       await ffmpeg.writeFile(inputAudio, audioData);
 
-      // Mux copying video stream intact and encoding audio to high quality AAC for standard MP4 playback
+      // Mux copying video stream intact and copying/encoding audio
       await ffmpeg.exec([
         '-i', inputVideo,
         '-i', inputAudio,
         '-c:v', 'copy',
-        '-c:a', 'aac',
+        '-c:a', canCopyAudio ? 'copy' : 'aac',
         '-map', '0:v:0',
         '-map', '1:a:0',
         '-shortest',
@@ -304,7 +333,7 @@ function App() {
         };
 
         setActiveJobs(prev => prev.map(job => job.id === jobId ? completedJob : job));
-        showToast('Loaded instantly from L1/L2 Cache!');
+        showToast('Loaded instantly from local cache!');
       } else if (data.jobId) {
         // Standard background queuing path
         setActiveJobs(prev => prev.map(job => {

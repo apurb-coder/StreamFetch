@@ -3,18 +3,6 @@ import { sha256 } from '../utils/security';
 
 const SECRET_FORMULA = 'yt2mp3_dynamic_secure_formula_salt_2026';
 
-// Central axios instance
-export const api = axios.create({
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
-
-// Dynamic configuration setter
-export const setApiBase = (url) => {
-  api.defaults.baseURL = url;
-};
-
 // Handshake / Token management
 export const refreshHandshakeToken = async (apiBase, adminKey, force = false) => {
   if (adminKey) return null;
