@@ -20,8 +20,8 @@ COPY package*.json ./
 # Install Node dependencies (production only, bypassing heavy dev tools like nodemon)
 RUN npm ci --only=production
 
-# Install PM2 globally within the container
-RUN npm install -g pm2
+# Install PM2 globally within the container (Disabled for lightweight single-process free tier deployment)
+# RUN npm install -g pm2
 
 # Copy the rest of the application codebase (src, workers, config)
 COPY . .
@@ -45,6 +45,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV YT_DLP_PATH=yt-dlp
 ENV REDIS_URL=redis://redis:6379
+ENV ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:5173
 
-# Execute server using PM2 container runtime clustering
-CMD ["pm2-runtime", "start", "ecosystem.config.cjs"]
+# Execute server using single Node.js process (Render 512MB free tier optimized)
+# CMD ["pm2-runtime", "start", "ecosystem.config.cjs"]
+CMD ["node", "src/server.js"]
