@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import config from '../../config/default.js';
 import proxyManager from './proxyManager.js';
 import ResponseOptimizer from '../utils/optimizer.js';
+import cookieManager from '../utils/cookieManager.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -34,19 +35,14 @@ class Extractor {
 
     if (proxy) args.push('--proxy', proxy);
 
-    // Build YouTube extractor args: tv client bypasses datacenter IP & botguard checks on cloud hosts (Render/AWS)
-    let ytArgs = 'youtube:player_client=tv,android';
-
-    const poToken = options.poToken || process.env.YT_PO_TOKEN;
-    const visitorData = options.visitorData || process.env.YT_VISITOR_DATA;
-
-    if (poToken && poToken.length > 40) {
-      ytArgs += `;po_token=web+${poToken}`;
-      if (visitorData) {
-        ytArgs += `;visitor_data=${visitorData}`;
-      }
+    // Pass authenticated cookies file if available
+    const cookiePath = cookieManager.getCookieFilePath();
+    if (cookiePath) {
+      args.push('--cookies', cookiePath);
     }
-    args.push('--extractor-args', ytArgs);
+
+    // Build YouTube extractor args for player client spoofing
+    args.push('--extractor-args', 'youtube:player_client=tv,android');
 
     if (options.quality && options.quality !== 'best') {
       args.push('-f', `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]`);

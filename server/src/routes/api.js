@@ -66,7 +66,7 @@ router.post(
   validateExtractionRequest,
   checkValidationResult,
   async (req, res) => {
-    const { url, quality, poToken, visitorData } = req.body;
+    const { url, quality } = req.body;
     const isAudio = req.path.includes('audio');
     const resolvedQuality = isAudio ? 'best' : (quality || 'best');
 
@@ -85,7 +85,7 @@ router.post(
       }
 
       // 2. Queue the task to BullMQ
-      const jobId = await jobQueue.addJob(url, resolvedQuality, { poToken, visitorData });
+      const jobId = await jobQueue.addJob(url, resolvedQuality);
       
       res.status(202).json({
         success: true,
@@ -173,7 +173,7 @@ router.post(
   validateExtractionRequest,
   checkValidationResult,
   async (req, res) => {
-    const { url, poToken, visitorData } = req.body;
+    const { url } = req.body;
     const cacheKey = `formats:${url}`;
 
     try {
@@ -193,7 +193,7 @@ router.post(
       }
 
       // 2. Queue the task to BullMQ
-      const jobId = await jobQueue.addJob(url, 'best', { poToken, visitorData });
+      const jobId = await jobQueue.addJob(url, 'best');
 
       res.status(202).json({
         success: true,

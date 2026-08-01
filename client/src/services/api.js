@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { sha256 } from '../utils/security';
-import { getClientPoToken } from '../utils/poTokenGenerator';
 
 const SECRET_FORMULA = 'yt2mp3_dynamic_secure_formula_salt_2026';
 
@@ -86,15 +85,6 @@ export const extractMedia = async (apiBase, adminKey, urlInput, quality, activeT
   } else if (activeTab === 'formats') {
     endpoint = '/formats';
     body = { url: urlInput };
-  }
-
-  // Attach client-generated PoToken if available
-  const { poToken, visitorData } = await getClientPoToken();
-  if (poToken) {
-    body.poToken = poToken;
-  }
-  if (visitorData) {
-    body.visitorData = visitorData;
   }
 
   const headers = await getSecurityHeaders(apiBase, adminKey, urlInput);

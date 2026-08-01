@@ -38,7 +38,8 @@ ENV NODE_ENV=production \
     PORT=3000 \
     YT_DLP_PATH=yt-dlp \
     REDIS_URL=redis://redis:6379 \
-    ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:5173
+    ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:5173 \
+    YT_COOKIES_BASE64=""
 
 # Execute server using single Node.js process (Render 512MB free tier optimized)
 # CMD ["pm2-runtime", "start", "ecosystem.config.cjs"]

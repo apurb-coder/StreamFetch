@@ -38,6 +38,7 @@ services:
       - USE_TOR=${USE_TOR:-false}
       - WEBSHARE_PROXIES=${WEBSHARE_PROXIES}
       - ORACLE_PROXIES=${ORACLE_PROXIES}
+      - YT_COOKIES_BASE64=${YT_COOKIES_BASE64}
     depends_on:
       redis:
         condition: service_healthy
