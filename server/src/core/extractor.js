@@ -69,6 +69,9 @@ class Extractor {
   }
 
   async updateBinary() {
+    // Skip runtime self-update in production (Docker build already fetches latest yt-dlp)
+    if (process.env.NODE_ENV === 'production') return;
+
     try {
       const { stdout } = await execFileAsync(this.ytDlpPath, ['-U']);
       console.log(`[yt-dlp] Auto-update status: ${stdout.trim()}`);
