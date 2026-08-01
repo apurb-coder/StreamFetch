@@ -68,6 +68,16 @@ class Extractor {
     }
   }
 
+  async updateBinary() {
+    try {
+      const { stdout } = await execFileAsync(this.ytDlpPath, ['-U']);
+      console.log(`[yt-dlp] Auto-update status: ${stdout.trim()}`);
+      return stdout;
+    } catch (err) {
+      console.warn(`[yt-dlp] Could not auto-update binary automatically: ${err.message}`);
+    }
+  }
+
   async shutdown() {
     this.activeJobs.clear();
   }

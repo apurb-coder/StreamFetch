@@ -1,11 +1,10 @@
 # Multi-Stage Production Dockerfile for High Performance yt-extractor-api
 FROM node:18-alpine
 
-# Install system dependencies (yt-dlp requires python, ffmpeg is for media streams, curl for healthchecks)
+# Install system dependencies (yt-dlp requires python, curl for healthchecks)
 RUN apk add --no-cache \
     python3 \
     py3-pip \
-    ffmpeg \
     curl \
     wget
 

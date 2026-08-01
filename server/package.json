@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "update:ytdlp": "yt-dlp -U || pip3 install --upgrade --break-system-packages yt-dlp || pip3 install --upgrade yt-dlp",
     "prod": "pm2-runtime start ecosystem.config.cjs",
     "pm2:start": "pm2 start ecosystem.config.cjs",
     "pm2:stop": "pm2 stop ecosystem.config.cjs",

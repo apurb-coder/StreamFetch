@@ -115,6 +115,8 @@ app.use((req, res) => {
 const PORT = config.port || 3000;
 const server = app.listen(PORT, () => {
   console.log(`[Server Process ${process.pid}] Listening for connections on port: ${PORT} (Env: ${config.env})`);
+  // Attempt background yt-dlp binary update check on server startup
+  extractionPool.updateBinary().catch(() => {});
 });
 
 // 10. Graceful shutdown handler
