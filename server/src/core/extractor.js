@@ -37,10 +37,12 @@ class Extractor {
 
     // Fetch active Server-Side PoToken & VisitorData
     const { poToken, visitorData } = await poTokenManager.getPoToken();
-    let ytArgs = 'youtube:player_client=tv,android';
+    
+    // Multi-client fallback sequence: ios -> android -> mweb -> tv -> web
+    let ytArgs = 'youtube:player_client=ios,android,mweb,tv,web';
 
     if (poToken) {
-      ytArgs = `youtube:player_client=web,mweb;po_token=web+${poToken}`;
+      ytArgs += `;po_token=web+${poToken}`;
       if (visitorData) {
         ytArgs += `;visitor_data=${visitorData}`;
       }
