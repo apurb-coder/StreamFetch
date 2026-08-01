@@ -34,10 +34,11 @@ class Extractor {
 
     if (proxy) args.push('--proxy', proxy);
 
-    // Build YouTube extractor args for player client spoofing (android client bypasses bot check)
+    // Build YouTube extractor args: tv client bypasses datacenter IP & botguard checks on cloud hosts (Render/AWS)
+    let ytArgs = 'youtube:player_client=tv,android';
+
     const poToken = options.poToken || process.env.YT_PO_TOKEN;
     const visitorData = options.visitorData || process.env.YT_VISITOR_DATA;
-    let ytArgs = 'youtube:player_client=android,web';
 
     if (poToken && poToken.length > 40) {
       ytArgs += `;po_token=web+${poToken}`;
