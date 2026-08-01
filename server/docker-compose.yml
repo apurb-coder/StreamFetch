@@ -38,7 +38,7 @@ services:
       - USE_TOR=${USE_TOR:-false}
       - WEBSHARE_PROXIES=${WEBSHARE_PROXIES}
       - ORACLE_PROXIES=${ORACLE_PROXIES}
-      - YT_COOKIES_BASE64=${YT_COOKIES_BASE64}
+      - PO_TOKEN_SERVER_URL=${PO_TOKEN_SERVER_URL:-http://po-token-generator:8080/token}
     depends_on:
       redis:
         condition: service_healthy
@@ -64,6 +64,16 @@ services:
       - app_network
     ports:
       - "${TOR_PORT:-9050}:9050"
+
+  # YouTube BotGuard PoToken generator microservice
+  po-token-generator:
+    image: quay.io/invidious/youtube-po-token-generator:latest
+    container_name: yt-po-token-generator
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - app_network
 
 volumes:
   redis_data:

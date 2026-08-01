@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import config from '../../config/default.js';
 import proxyManager from './proxyManager.js';
 import ResponseOptimizer from '../utils/optimizer.js';
-import cookieManager from '../utils/cookieManager.js';
+import poTokenManager from './poTokenManager.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -35,14 +35,17 @@ class Extractor {
 
     if (proxy) args.push('--proxy', proxy);
 
-    // Pass authenticated cookies file if available
-    const cookiePath = cookieManager.getCookieFilePath();
-    if (cookiePath) {
-      args.push('--cookies', cookiePath);
-    }
+    // Fetch active Server-Side PoToken & VisitorData
+    const { poToken, visitorData } = await poTokenManager.getPoToken();
+    let ytArgs = 'youtube:player_client=tv,android';
 
-    // Build YouTube extractor args for player client spoofing
-    args.push('--extractor-args', 'youtube:player_client=tv,android');
+    if (poToken) {
+      ytArgs = `youtube:player_client=web,mweb;po_token=web+${poToken}`;
+      if (visitorData) {
+        ytArgs += `;visitor_data=${visitorData}`;
+      }
+    }
+    args.push('--extractor-args', ytArgs);
 
     if (options.quality && options.quality !== 'best') {
       args.push('-f', `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]`);
