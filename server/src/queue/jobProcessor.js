@@ -55,7 +55,7 @@ class JobProcessor {
     this.worker = new Worker(
       this.queueName,
       async (job) => {
-        const { url, quality } = job.data;
+        const { url, quality, poToken, visitorData } = job.data;
         console.log(`[JobProcessor] Picked up job ${job.id} for: ${url}`);
 
         try {
@@ -63,7 +63,7 @@ class JobProcessor {
           await job.updateProgress(10); // 10% progress
 
           // Process extraction through core worker thread pool
-          const metadata = await extractionPool.extract(url, { quality });
+          const metadata = await extractionPool.extract(url, { quality, poToken, visitorData });
 
           // Save to cache pool (shorter TTL for common videos, longer TTL for popular hits)
           const cacheKey = `extract:${url}:${quality || 'best'}`;

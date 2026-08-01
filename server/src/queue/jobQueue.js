@@ -61,11 +61,13 @@ class JobQueueManager {
    * Pushes a new extraction job to the background queue
    * @param {string} url - YouTube URL to extract
    * @param {string} quality - Quality specification
+   * @param {Object} options - Extraction options (poToken, visitorData)
    * @returns {Promise<string>} The generated Job ID
    */
-  async addJob(url, quality) {
-    const job = await this.queue.add('extract', { url, quality });
-    console.log(`[JobQueue] Job ${job.id} added for: ${url} (Quality: ${quality})`);
+  async addJob(url, quality, options = {}) {
+    const { poToken, visitorData } = options;
+    const job = await this.queue.add('extract', { url, quality, poToken, visitorData });
+    console.log(`[JobQueue] Job ${job.id} added for: ${url} (Quality: ${quality}${poToken ? ', PoToken: present' : ''})`);
     return job.id;
   }
 

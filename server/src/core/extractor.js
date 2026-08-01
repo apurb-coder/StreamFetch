@@ -34,6 +34,19 @@ class Extractor {
 
     if (proxy) args.push('--proxy', proxy);
 
+    // Build YouTube extractor args for player client spoofing and PoToken bypass
+    const poToken = options.poToken || process.env.YT_PO_TOKEN;
+    const visitorData = options.visitorData || process.env.YT_VISITOR_DATA;
+    let ytArgs = 'youtube:player_client=ios,android,mweb';
+
+    if (poToken) {
+      ytArgs += `;po_token=web+${poToken}`;
+      if (visitorData) {
+        ytArgs += `;visitor_data=${visitorData}`;
+      }
+    }
+    args.push('--extractor-args', ytArgs);
+
     if (options.quality && options.quality !== 'best') {
       args.push('-f', `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]`);
     } else {
