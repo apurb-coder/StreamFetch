@@ -14,14 +14,25 @@ class Extractor {
     this.activeJobs = new Set();
   }
 
+  cleanUrl(urlStr) {
+    try {
+      const parsed = new URL(urlStr);
+      if (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')) {
+        const v = parsed.searchParams.get('v');
+        if (v) return `https://www.youtube.com/watch?v=${v}`;
+      }
+    } catch (e) {}
+    return urlStr;
+  }
+
   async extract(url, options = {}, attempt = 0) {
+    const cleanTargetUrl = this.cleanUrl(url);
     const proxy = proxyManager.getRandomProxy();
     const args = [
-      url,
+      cleanTargetUrl,
       '--dump-json',
       '--no-download',
       '--no-playlist',
-      '--no-check-formats',
       '--socket-timeout', String(Math.floor(this.timeout / 1000)),
       '--retries', '2',
       '--fragment-retries', '2',
@@ -37,8 +48,8 @@ class Extractor {
     // Fetch active Server-Side PoToken & VisitorData
     const { poToken, visitorData } = await poTokenManager.getPoToken();
     
-    // Multi-client fallback sequence: ios -> android -> mweb -> tv -> web
-    let ytArgs = 'youtube:player_client=ios,android,mweb,tv,web';
+    // Multi-client fallback sequence: ios -> android -> mweb -> web_embedded -> tv -> web
+    let ytArgs = 'youtube:player_client=ios,android,mweb,web_embedded,tv,web';
 
     if (poToken) {
       ytArgs += `;po_token=web+${poToken}`;
@@ -49,9 +60,9 @@ class Extractor {
     args.push('--extractor-args', ytArgs);
 
     if (options.quality && options.quality !== 'best') {
-      args.push('-f', `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]`);
+      args.push('-f', `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]/b/best`);
     } else {
-      args.push('-f', 'bestvideo+bestaudio/best');
+      args.push('-f', 'bestvideo+bestaudio/b/best');
     }
 
     const env = { ...process.env, LC_ALL: 'en_US.UTF-8', LANG: 'en_US.UTF-8' };

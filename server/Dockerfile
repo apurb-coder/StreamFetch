@@ -1,8 +1,8 @@
 # Ultra-Lean Production Dockerfile for yt-extractor-api
 FROM node:18-alpine
 
-# Install minimal runtime dependencies (python3 for yt-dlp, curl for healthchecks)
-RUN apk add --no-cache python3 curl && \
+# Install minimal runtime dependencies (python3 for yt-dlp, ffmpeg for media merging, curl for healthchecks)
+RUN apk add --no-cache python3 curl ffmpeg && \
     curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp
 
