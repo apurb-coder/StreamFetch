@@ -67,7 +67,7 @@ services:
 
   # YouTube BotGuard PoToken generator microservice
   po-token-generator:
-    image: quay.io/invidious/youtube-po-token-generator:latest
+    image: brainicism/bgutil-ytdlp-pot-provider:node
     container_name: yt-po-token-generator
     restart: unless-stopped
     ports:

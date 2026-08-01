@@ -12,7 +12,7 @@ class PoTokenManager {
     this.expiresAt = 0;
 
     // External or local PoToken provider endpoint
-    this.poTokenServiceUrl = process.env.PO_TOKEN_SERVER_URL || 'https://bgutil-ytdlp-potoken-generator.onrender.com/token';
+    this.poTokenServiceUrl = process.env.PO_TOKEN_SERVER_URL || 'https://service-url/token';
   }
 
   /**
@@ -28,15 +28,43 @@ class PoTokenManager {
     // 2. Fetch fresh token from PoToken service
     try {
       if (this.poTokenServiceUrl) {
-        const response = await fetch(this.poTokenServiceUrl, { signal: AbortSignal.timeout(8000) });
-        if (response.ok) {
-          const data = await response.json();
-          if (data && (data.poToken || data.po_token)) {
-            this.cachedToken = data.poToken || data.po_token;
-            this.cachedVisitorData = data.visitorData || data.visitor_data || null;
-            this.expiresAt = Date.now() + (3 * 60 * 60 * 1000); // Cache for 3 hours
-            console.log('[PoTokenManager] Successfully retrieved fresh YouTube PoToken from server generator.');
-            return { poToken: this.cachedToken, visitorData: this.cachedVisitorData };
+        const baseUrl = this.poTokenServiceUrl.replace(/\/+$/, '');
+        const candidatePaths = [
+          '/get_pot',
+          '',
+          '/get_potoken',
+          '/token'
+        ];
+
+        for (const path of candidatePaths) {
+          const targetUrl = baseUrl.endsWith(path) ? baseUrl : `${baseUrl}${path}`;
+          
+          // Try POST first, then GET
+          for (const method of ['POST', 'GET']) {
+            try {
+              const response = await fetch(targetUrl, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: method === 'POST' ? JSON.stringify({}) : undefined,
+                signal: AbortSignal.timeout(5000)
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                const token = data.poToken || data.po_token || data.token;
+                const visitorData = data.contentBinding || data.visitorData || data.visitor_data;
+
+                if (token) {
+                  this.cachedToken = token;
+                  this.cachedVisitorData = visitorData || null;
+                  this.expiresAt = Date.now() + (3 * 60 * 60 * 1000);
+                  console.log(`[PoTokenManager] Successfully retrieved fresh YouTube PoToken from ${targetUrl} via ${method}.`);
+                  return { poToken: this.cachedToken, visitorData: this.cachedVisitorData };
+                }
+              }
+            } catch (e) {
+              // Try next candidate
+            }
           }
         }
       }
