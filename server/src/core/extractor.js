@@ -22,7 +22,6 @@ class Extractor {
       '--no-download',
       '--no-playlist',
       '--no-check-formats',
-      '--flat-playlist',
       '--socket-timeout', String(Math.floor(this.timeout / 1000)),
       '--retries', '2',
       '--fragment-retries', '2',

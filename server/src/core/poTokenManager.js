@@ -27,8 +27,9 @@ class PoTokenManager {
 
     // 2. Fetch fresh token from PoToken service
     try {
-      if (this.poTokenServiceUrl) {
-        const baseUrl = this.poTokenServiceUrl.replace(/\/+$/, '');
+      const serviceUrl = process.env.PO_TOKEN_SERVER_URL;
+      if (serviceUrl && serviceUrl.startsWith('http')) {
+        const baseUrl = serviceUrl.replace(/\/+$/, '');
         const candidatePaths = [
           '/get_pot',
           '',
