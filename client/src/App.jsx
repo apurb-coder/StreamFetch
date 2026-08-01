@@ -16,7 +16,7 @@ import BentoGrid from './components/BentoGrid';
 import MuxingOverlay from './components/MuxingOverlay';
 import Footer from './components/Footer';
 
-const DEFAULT_API_BASE = 'http://localhost:3000/api';
+const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 const SECRET_FORMULA = 'yt2mp3_dynamic_secure_formula_salt_2026';
 
 function App() {
